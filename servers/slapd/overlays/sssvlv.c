@@ -1,5 +1,5 @@
 /* sssvlv.c - server side sort / virtual list view */
-/* $OpenLDAP$ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/overlays/sssvlv.c,v 1.21 2010/10/16 23:36:47 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2009-2010 The OpenLDAP Foundation.
@@ -1185,8 +1185,8 @@ static int sssvlv_db_init(
 				LDAP_CONTROL_VLVREQUEST, rc, 0 );
 #ifdef SLAP_CONFIG_DELETE
 			overlay_unregister_control( be, LDAP_CONTROL_SORTREQUEST );
-#endif /* SLAP_CONFIG_DELETE */
 			unregister_supported_control( LDAP_CONTROL_SORTREQUEST );
+#endif /* SLAP_CONFIG_DELETE */
 			return rc;
 		}
 	}
