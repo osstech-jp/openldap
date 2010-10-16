@@ -1,5 +1,5 @@
 /* tls_g.c - Handle tls/ssl using GNUTLS. */
-/* $OpenLDAP$ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap/tls_g.c,v 1.18 2010/10/16 10:11:11 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2008-2010 The OpenLDAP Foundation.
@@ -967,7 +967,7 @@ tlsg_sb_close( Sockbuf_IO_Desc *sbiod )
 	assert( sbiod->sbiod_pvt != NULL );
 
 	p = (struct tls_data *)sbiod->sbiod_pvt;
-	gnutls_bye ( p->session->session, GNUTLS_SHUT_RDWR );
+	gnutls_bye ( p->session->session, GNUTLS_SHUT_WR );
 	return 0;
 }
 
