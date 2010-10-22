@@ -1,5 +1,5 @@
 .TH LDAP_GET_OPTION 3 "RELEASEDATE" "OpenLDAP LDVERSION"
-.\" $OpenLDAP$
+.\" $OpenLDAP: pkg/ldap/doc/man/man3/ldap_get_option.3,v 1.24 2010/10/22 19:45:48 hyc Exp $
 .\" Copyright 1998-2010 The OpenLDAP Foundation All Rights Reserved.
 .\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
 .SH NAME
@@ -321,6 +321,15 @@ must be
 .BR "LDAPControl *const *" ;
 the library duplicates the controls passed via
 .BR invalue .
+.TP
+.B LDAP_OPT_SESSION_REFCNT
+Returns the reference count associated with the LDAP handle passed in as
+.BR ld ;
+.BR outvalue
+must be a
+.BR "int *" .
+This is a read-only, handle-specific option.
+This option is OpenLDAP specific.
 .TP
 .B LDAP_OPT_SIZELIMIT
 Sets/gets the value that defines the maximum number of entries

@@ -1,4 +1,4 @@
-/* $OpenLDAP: pkg/ldap/libraries/libldap/cyrus.c,v 1.161 2010/10/15 11:53:12 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap/cyrus.c,v 1.162 2010/10/22 19:45:48 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1998-2010 The OpenLDAP Foundation.
@@ -416,7 +416,7 @@ ldap_int_sasl_bind(
 		void	*ssl;
 
 		rc = 0;
-		LDAP_MUTEX_LOCK( &ld->ld_req_mutex );
+		LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
 		ber_sockbuf_ctrl( ld->ld_sb, LBER_SB_OPT_GET_FD, &sd );
 
 		if ( sd == AC_SOCKET_INVALID ) {
@@ -434,7 +434,7 @@ ldap_int_sasl_bind(
 				}
 			}
 		}   
-		LDAP_MUTEX_UNLOCK( &ld->ld_req_mutex );
+		LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		if( rc != 0 ) return ld->ld_errno;
 
 		oldctx = ld->ld_defconn->lconn_sasl_authctx;

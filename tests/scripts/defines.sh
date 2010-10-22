@@ -1,5 +1,5 @@
 #! /bin/sh
-# $OpenLDAP$
+# $OpenLDAP: pkg/ldap/tests/scripts/defines.sh,v 1.176 2010/10/22 19:48:02 hyc Exp $
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
 ## Copyright 1998-2010 The OpenLDAP Foundation.
@@ -192,6 +192,7 @@ LDAPCOMPARE="$CLIENTDIR/ldapcompare $TOOLARGS"
 LDAPEXOP="$CLIENTDIR/ldapexop $TOOLARGS"
 SLAPDTESTER=$PROGDIR/slapd-tester
 LDIFFILTER=$PROGDIR/ldif-filter
+SLAPDMTREAD=$PROGDIR/slapd-mtread
 LVL=${SLAPD_DEBUG-0x4105}
 LOCALHOST=localhost
 BASEPORT=${SLAPD_BASEPORT-9010}
@@ -310,6 +311,8 @@ SLAVEOUT=$SERVER2OUT
 SLAVE2OUT=$SERVER3OUT
 SLAVEFLT=$SERVER2FLT
 SLAVE2FLT=$SERVER3FLT
+
+MTREADOUT=$TESTDIR/mtread.out
 
 # original outputs for cmp
 PROXYCACHEOUT=$DATADIR/proxycache.out
