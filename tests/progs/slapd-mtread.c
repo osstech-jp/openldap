@@ -1,4 +1,4 @@
-/* $OpenLDAP: pkg/ldap/tests/progs/slapd-mtread.c,v 1.1 2010/10/22 19:48:02 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/tests/progs/slapd-mtread.c,v 1.2 2010/10/23 22:01:11 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1999-2009 The OpenLDAP Foundation.
@@ -20,7 +20,7 @@
 /*
  * This tool is a MT reader.  It behaves like slapd-read however
  * with one or more threads simultaneously using the same connection.
- * If -M is enabled, then M threads will also perfrom write operations.
+ * If -M is enabled, then M threads will also perform write operations.
  */
 
 #include "portable.h"
