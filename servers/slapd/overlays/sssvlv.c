@@ -1,5 +1,5 @@
 /* sssvlv.c - server side sort / virtual list view */
-/* $OpenLDAP: pkg/ldap/servers/slapd/overlays/sssvlv.c,v 1.23 2010/10/19 08:48:21 ralf Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/overlays/sssvlv.c,v 1.24 2010/10/25 22:59:10 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2009-2010 The OpenLDAP Foundation.
@@ -198,7 +198,7 @@ static int pack_vlv_response_control(
 	ber_init2( ber, NULL, LBER_USE_DER );
 	ber_set_option( ber, LBER_OPT_BER_MEMCTX, &op->o_tmpmemctx );
 
-	rc = ber_printf( ber, "{iii", so->so_vlv_target, so->so_nentries,
+	rc = ber_printf( ber, "{iie", so->so_vlv_target, so->so_nentries,
 		so->so_vlv_rc );
 
 	if ( rc != -1 && so->so_vcontext ) {
