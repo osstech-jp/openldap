@@ -1,5 +1,5 @@
 /* ldappasswd -- a tool for change LDAP passwords */
-/* $OpenLDAP$ */
+/* $OpenLDAP: pkg/ldap/clients/tools/ldappasswd.c,v 1.151 2010/10/26 23:00:47 kurt Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1998-2010 The OpenLDAP Foundation.
@@ -248,10 +248,6 @@ main( int argc, char *argv[] )
 	ld = tool_conn_setup( 0, 0 );
 
 	tool_bind( ld );
-
-	if ( assertion || authzid || manageDSAit || noop ) {
-		tool_server_controls( ld, NULL, 0 );
-	}
 
 	if( user != NULL || oldpw.bv_val != NULL || newpw.bv_val != NULL ) {
 		/* build the password modify request data */
