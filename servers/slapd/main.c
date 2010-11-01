@@ -1,4 +1,4 @@
-/* $OpenLDAP: pkg/ldap/servers/slapd/main.c,v 1.273 2010/11/01 13:51:23 ralf Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/main.c,v 1.274 2010/11/01 14:20:39 ralf Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1998-2010 The OpenLDAP Foundation.
@@ -344,7 +344,8 @@ usage( char *name )
 #if defined(HAVE_SETUID) && defined(HAVE_SETGID)
 		"\t-u user\t\tUser (id or name) to run as\n"
 #endif
-		"\t-V\t\tprint version info (-VV only)\n"
+		"\t-V\t\tprint version info (-VV exit afterwards, -VVV print\n"
+		"\t\t\tinfo about static overlays and backends)\n"
     );
 }
 
