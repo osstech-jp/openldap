@@ -1,5 +1,5 @@
 /* chain.c - chain LDAP operations */
-/* $OpenLDAP$ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldap/chain.c,v 1.81 2010/11/12 03:35:49 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2003-2010 The OpenLDAP Foundation.
@@ -708,7 +708,11 @@ ldap_chain_search(
 
 		} else {
 			/* RFC 4511: if scope is absent, use original */
-			tmp_oq_search.rs_scope = op->ors_scope;
+			/* Section 4.5.3: if scope is onelevel, use base */
+			if ( op->ors_scope == LDAP_SCOPE_ONELEVEL )
+				tmp_oq_search.rs_scope = LDAP_SCOPE_BASE;
+			else
+				tmp_oq_search.rs_scope = op->ors_scope;
 		}
 
 		rc = LDAP_SUCCESS;
