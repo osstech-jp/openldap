@@ -1,5 +1,5 @@
 /* chain.c - chain LDAP operations */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldap/chain.c,v 1.81 2010/11/12 03:35:49 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldap/chain.c,v 1.82 2010/11/14 22:53:54 ando Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2003-2010 The OpenLDAP Foundation.
@@ -1265,6 +1265,7 @@ chain_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 	assert( rc == LDAP_SUCCESS );
 
 	at = attr_find( e->e_attrs, ad );
+#if 0
 	if ( lc->lc_common_li == NULL && at != NULL ) {
 		/* FIXME: we should generate an empty default entry
 		 * if none is supplied */
@@ -1275,7 +1276,9 @@ chain_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto done;
 
-	} else if ( lc->lc_common_li != NULL && at == NULL ) {
+	} else
+#endif
+	if ( lc->lc_common_li != NULL && at == NULL ) {
 		/* FIXME: we should generate an empty default entry
 		 * if none is supplied */
 		Debug( LDAP_DEBUG_ANY, "slapd-chain: "
