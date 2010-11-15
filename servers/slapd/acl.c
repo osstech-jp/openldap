@@ -1,5 +1,5 @@
 /* acl.c - routines to parse and check acl's */
-/* $OpenLDAP$ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/acl.c,v 1.355 2010/11/15 15:27:56 ralf Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1998-2010 The OpenLDAP Foundation.
@@ -220,7 +220,7 @@ slap_access_allowed(
 		state = &acl_state;
 	if ( state->as_desc == desc &&
 		state->as_access == access &&
-		state->as_vd_acl != NULL )
+		state->as_vd_acl_present )
 	{
 		a = state->as_vd_acl;
 		count = state->as_vd_acl_count;
@@ -405,7 +405,7 @@ access_allowed_mask(
 		if ( state->as_desc == desc &&
 			state->as_access == access &&
 			state->as_result != -1 &&
-			state->as_vd_acl == NULL )
+			!state->as_vd_acl_present )
 			{
 			Debug( LDAP_DEBUG_ACL,
 				"=> access_allowed: result was in cache (%s)\n",
@@ -615,7 +615,8 @@ slap_acl_get(
 				continue;
 			}
 
-			if ( state->as_vd_acl == NULL ) {
+			if ( !state->as_vd_acl_present ) {
+				state->as_vd_acl_present = 1;
 				state->as_vd_acl = prev;
 				state->as_vd_acl_count = *count - 1;
 				ACL_PRIV_ASSIGN ( state->as_vd_mask, *mask );
@@ -714,7 +715,8 @@ slap_acl_get(
  * Record value-dependent access control state
  */
 #define ACL_RECORD_VALUE_STATE do { \
-		if( state && state->as_vd_acl == NULL ) { \
+		if( state && !state->as_vd_acl_present ) { \
+			state->as_vd_acl_present = 1; \
 			state->as_vd_acl = a; \
 			state->as_vd_acl_count = count; \
 			ACL_PRIV_ASSIGN( state->as_vd_mask, *mask ); \
