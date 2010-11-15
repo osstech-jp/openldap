@@ -1,5 +1,5 @@
 /* syncrepl.c -- Replication Engine which uses the LDAP Sync protocol */
-/* $OpenLDAP$ */
+/* $OpenLDAP: pkg/ldap/servers/slapd/syncrepl.c,v 1.514 2010/11/15 13:15:46 rein Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2003-2010 The OpenLDAP Foundation.
@@ -1423,6 +1423,11 @@ do_syncrepl(
 	if ( !si->si_ld ) {
 		si->si_refreshDelete = 0;
 		si->si_refreshPresent = 0;
+
+		if ( si->si_presentlist ) {
+		    avl_free( si->si_presentlist, ch_free );
+		    si->si_presentlist = NULL;
+		}
 
 		/* use main DB when retrieving contextCSN */
 		op->o_bd = si->si_wbe;
