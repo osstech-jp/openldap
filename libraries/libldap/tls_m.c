@@ -1,5 +1,5 @@
 /* tls_m.c - Handle tls/ssl using Mozilla NSS. */
-/* $OpenLDAP: pkg/ldap/libraries/libldap/tls_m.c,v 1.21 2010/11/15 19:44:32 hyc Exp $ */
+/* $OpenLDAP: pkg/ldap/libraries/libldap/tls_m.c,v 1.22 2010/11/15 19:45:47 hyc Exp $ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2008-2010 The OpenLDAP Foundation.
@@ -105,6 +105,9 @@ static const PRIOMethods tlsm_PR_methods;
 
 #define PEM_LIBRARY	"nsspem"
 #define PEM_MODULE	"PEM"
+/* hash files for use with cacertdir have this file name suffix */
+#define PEM_CA_HASH_FILE_SUFFIX	".0"
+#define PEM_CA_HASH_FILE_SUFFIX_LEN 2
 
 static SECMODModule *pem_module;
 
@@ -1235,8 +1238,19 @@ tlsm_init_ca_certs( tlsm_ctx *ctx, const char *cacertfile, const char *cacertdir
 
 		do {
 			entry = PR_ReadDir( dir, PR_SKIP_BOTH | PR_SKIP_HIDDEN );
-			if ( NULL != entry ) {
-				char *fullpath = PR_smprintf( "%s/%s", cacertdir, entry->name );
+			if ( ( NULL != entry ) && ( NULL != entry->name ) ) {
+				char *fullpath = NULL;
+				char *ptr;
+
+				ptr = PL_strrstr( entry->name, PEM_CA_HASH_FILE_SUFFIX );
+				if ( ( ptr == NULL ) || ( *(ptr + PEM_CA_HASH_FILE_SUFFIX_LEN) != '\0' ) ) {
+					Debug( LDAP_DEBUG_TRACE,
+						   "TLS: file %s does not end in [%s] - does not appear to be a CA certificate "
+						   "directory file with a properly hashed file name - skipping.\n",
+						   entry->name, PEM_CA_HASH_FILE_SUFFIX, 0 );
+					continue;
+				}
+				fullpath = PR_smprintf( "%s/%s", cacertdir, entry->name );
 				if ( !tlsm_add_cert_from_file( ctx, fullpath, isca ) ) {
 					Debug( LDAP_DEBUG_TRACE,
 						   "TLS: loaded CA certificate file %s from CA certificate directory %s.\n",
