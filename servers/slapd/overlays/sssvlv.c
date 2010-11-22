@@ -1,5 +1,5 @@
 /* sssvlv.c - server side sort / virtual list view */
-/* $OpenLDAP: pkg/ldap/servers/slapd/overlays/sssvlv.c,v 1.25 2010/11/04 11:13:26 ralf Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2009-2010 The OpenLDAP Foundation.
@@ -131,7 +131,8 @@ static struct berval* select_value(
 {
 	struct berval* ber1, *ber2;
 	MatchingRule *mr = key->sk_ordering;
-	int i, cmp;
+	unsigned i;
+	int cmp;
 
 	ber1 = &(attr->a_nvals[0]);
 	ber2 = ber1+1;
