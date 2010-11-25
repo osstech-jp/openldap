@@ -1,4 +1,4 @@
-/* $OpenLDAP: pkg/ldap/libraries/libldap/cyrus.c,v 1.162 2010/10/22 19:45:48 hyc Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1998-2010 The OpenLDAP Foundation.
@@ -1205,7 +1205,10 @@ ldap_int_sasl_bind(
 	LDAPControl		**cctrls,
 	unsigned		flags,
 	LDAP_SASL_INTERACT_PROC *interact,
-	void * defaults )
+	void			*defaults,
+	LDAPMessage		*result,
+	const char		**rmech,
+	int				*msgid )
 { return LDAP_NOT_SUPPORTED; }
 
 int

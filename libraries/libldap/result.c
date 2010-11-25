@@ -1,5 +1,5 @@
 /* result.c - wait for an ldap result */
-/* $OpenLDAP: pkg/ldap/libraries/libldap/result.c,v 1.174 2010/10/22 19:45:49 hyc Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1998-2010 The OpenLDAP Foundation.
@@ -498,12 +498,8 @@ nextresp3:
 		Debug( LDAP_DEBUG_CONNS,
 			"ber_get_next failed.\n", 0, 0, 0 );
 #endif		   
-#ifdef EWOULDBLOCK			
 		if ( err == EWOULDBLOCK ) return LDAP_MSG_X_KEEP_LOOKING;
-#endif
-#ifdef EAGAIN
 		if ( err == EAGAIN ) return LDAP_MSG_X_KEEP_LOOKING;
-#endif
 		ld->ld_errno = LDAP_SERVER_DOWN;
 		--lc->lconn_refcnt;
 		lc->lconn_status = 0;

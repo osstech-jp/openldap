@@ -1,5 +1,5 @@
 /* syncrepl.c -- Replication Engine which uses the LDAP Sync protocol */
-/* $OpenLDAP: pkg/ldap/servers/slapd/syncrepl.c,v 1.514 2010/11/15 13:15:46 rein Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2003-2010 The OpenLDAP Foundation.
@@ -3000,7 +3000,7 @@ syncrepl_add_glue_ancestors(
 	Backend *be = op->o_bd;
 	slap_callback cb = { NULL };
 	Attribute	*a;
-	int	rc;
+	int	rc = LDAP_SUCCESS;
 	int suffrdns;
 	int i;
 	struct berval dn = BER_BVNULL;

@@ -485,13 +485,11 @@ octetStringMatch(
 	void *assertedValue )
 {
 	struct berval *asserted = (struct berval *) assertedValue;
-	int match = value->bv_len - asserted->bv_len;
+	ber_slen_t d = (ber_slen_t) value->bv_len - (ber_slen_t) asserted->bv_len;
 
-	if( match == 0 ) {
-		match = memcmp( value->bv_val, asserted->bv_val, value->bv_len );
-	}
+	*matchp = d ? (sizeof(d) == sizeof(int) ? d : d < 0 ? -1 : 1)
+		: memcmp( value->bv_val, asserted->bv_val, value->bv_len );
 
-	*matchp = match;
 	return LDAP_SUCCESS;
 }
 
@@ -511,7 +509,13 @@ octetStringOrderingMatch(
 	int match = memcmp( value->bv_val, asserted->bv_val,
 		(v_len < av_len ? v_len : av_len) );
 
-	if( match == 0 ) match = v_len - av_len;
+	if( match == 0 )
+		match = sizeof(v_len) == sizeof(int)
+			? (int) v_len - (int) av_len
+			: v_len < av_len ? -1 : v_len > av_len;
+
+	if ( flags & SLAP_MR_EXT )
+		match = (match >= 0);
 
 	*matchp = match;
 	return LDAP_SUCCESS;
@@ -1419,9 +1423,10 @@ uniqueMemberMatch(
 	}
 
 	if( valueUID.bv_len && assertedUID.bv_len ) {
-		match = valueUID.bv_len - assertedUID.bv_len;
-		if ( match ) {
-			*matchp = match;
+		ber_slen_t d;
+		d = (ber_slen_t) valueUID.bv_len - (ber_slen_t) assertedUID.bv_len;
+		if ( d ) {
+			*matchp = sizeof(d) == sizeof(int) ? d : d < 0 ? -1 : 1;
 			return LDAP_SUCCESS;
 		}
 
@@ -1572,7 +1577,7 @@ booleanMatch(
 {
 	/* simplistic matching allowed by rigid validation */
 	struct berval *asserted = (struct berval *) assertedValue;
-	*matchp = value->bv_len != asserted->bv_len;
+	*matchp = (int) asserted->bv_len - (int) value->bv_len;
 	return LDAP_SUCCESS;
 }
 
@@ -2410,6 +2415,9 @@ integerMatch(
 			: memcmp( v.bv_val, a.bv_val, v.bv_len ));
 		if( vsign < 0 ) match = -match;
 	}
+
+	if ( (flags & SLAP_MR_EXT) && (mr->smr_usage & SLAP_MR_ORDERING) )
+		match = (match >= 0);
 
 	*matchp = match;
 	return LDAP_SUCCESS;
@@ -5615,6 +5623,9 @@ generalizedTimeOrderingMatch(
 		(v_len < av_len ? v_len : av_len) - 1 );
 	if ( match == 0 ) match = v_len - av_len;
 
+	if ( flags & SLAP_MR_EXT )
+		match = (match >= 0);
+
 	*matchp = match;
 	return LDAP_SUCCESS;
 }
@@ -6388,7 +6399,7 @@ static slap_mrule_defs_rec mrule_defs[] = {
 
 	{"( 2.5.13.3 NAME 'caseIgnoreOrderingMatch' "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
-		SLAP_MR_ORDERING, directoryStringSyntaxes,
+		SLAP_MR_ORDERING | SLAP_MR_EXT, directoryStringSyntaxes,
 		NULL, UTF8StringNormalize, octetStringOrderingMatch,
 		NULL, NULL,
 		"caseIgnoreMatch" },
@@ -6409,7 +6420,7 @@ static slap_mrule_defs_rec mrule_defs[] = {
 
 	{"( 2.5.13.6 NAME 'caseExactOrderingMatch' "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )",
-		SLAP_MR_ORDERING, directoryStringSyntaxes,
+		SLAP_MR_ORDERING | SLAP_MR_EXT, directoryStringSyntaxes,
 		NULL, UTF8StringNormalize, octetStringOrderingMatch,
 		NULL, NULL,
 		"caseExactMatch" },
@@ -6430,7 +6441,7 @@ static slap_mrule_defs_rec mrule_defs[] = {
 
 	{"( 2.5.13.9 NAME 'numericStringOrderingMatch' "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.36 )",
-		SLAP_MR_ORDERING, NULL,
+		SLAP_MR_ORDERING | SLAP_MR_EXT, NULL,
 		NULL, numericStringNormalize, octetStringOrderingMatch,
 		NULL, NULL,
 		"numericStringMatch" },
@@ -6471,7 +6482,7 @@ static slap_mrule_defs_rec mrule_defs[] = {
 
 	{"( 2.5.13.15 NAME 'integerOrderingMatch' "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )",
-		SLAP_MR_ORDERING | SLAP_MR_ORDERED_INDEX, NULL,
+		SLAP_MR_ORDERING | SLAP_MR_EXT | SLAP_MR_ORDERED_INDEX, NULL,
 		NULL, NULL, integerMatch,
 		NULL, NULL,
 		"integerMatch" },
@@ -6492,7 +6503,7 @@ static slap_mrule_defs_rec mrule_defs[] = {
 
 	{"( 2.5.13.18 NAME 'octetStringOrderingMatch' "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 )",
-		SLAP_MR_ORDERING, NULL,
+		SLAP_MR_ORDERING | SLAP_MR_EXT, NULL,
 		NULL, NULL, octetStringOrderingMatch,
 		NULL, NULL,
 		"octetStringMatch" },
@@ -6545,7 +6556,7 @@ static slap_mrule_defs_rec mrule_defs[] = {
 
 	{"( 2.5.13.28 NAME 'generalizedTimeOrderingMatch' "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )",
-		SLAP_MR_ORDERING | SLAP_MR_ORDERED_INDEX, NULL,
+		SLAP_MR_ORDERING | SLAP_MR_EXT | SLAP_MR_ORDERED_INDEX, NULL,
 		NULL, generalizedTimeNormalize, generalizedTimeOrderingMatch,
 		NULL, NULL,
 		"generalizedTimeMatch" },

@@ -1,5 +1,5 @@
 #! /bin/sh
-# $OpenLDAP: pkg/ldap/tests/scripts/test061-syncreplication-initiation,v 1.2 2010/11/15 11:20:06 rein Exp $
+# $OpenLDAP$
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
 ## Copyright 1998-2010 The OpenLDAP Foundation.
@@ -49,6 +49,8 @@ DIRS="$PROV_DIR $CONS_DIR $FWD1_DIR"
 URIS="$PROV_URI $CONS_URI $FWD1_URI"
 
 noObj=32
+nullExclude="" nullOK=""
+test $BACKEND = null && nullExclude="# " nullOK="OK" noObj=0
 
 mkdir -p $TESTDIR
 
@@ -198,6 +200,14 @@ EOF
 	fi
 done
 
+syncprov_module=''
+[ "$AC_syncprov" = syncprovmod ] && syncprov_module='
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulePath: ../../../servers/slapd/overlays
+olcModuleLoad: syncprov.la'
+
 for uri in $PROV_URI; do
 	echo "Adding database configuration on $uri"
 	$LDAPADD -D cn=config -H $uri -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
@@ -205,17 +215,13 @@ dn: olcDatabase={1}$BACKEND,cn=config
 objectClass: olcDatabaseConfig
 objectClass: olc${BACKEND}Config
 olcDatabase: {1}$BACKEND
-olcDbDirectory: ./db
+${nullExclude}olcDbDirectory: ./db
 $olcDbCheckpoint: 1024 5
 olcSuffix: $BASEDN
 olcRootDN: $MANAGERDN
 olcRootPW: $PASSWD
 
-dn: cn=module,cn=config
-objectClass: olcModuleList
-cn: module
-olcModulePath: ../../../servers/slapd/overlays
-olcModuleLoad: syncprov.la
+$syncprov_module
 
 dn: olcOverlay={0}syncprov,olcDatabase={1}$BACKEND,cn=config
 objectClass: olcOverlayConfig
@@ -256,7 +262,7 @@ dn: olcDatabase={1}$BACKEND,cn=config
 objectClass: olcDatabaseConfig
 objectClass: olc${BACKEND}Config
 olcDatabase: {1}$BACKEND
-olcDbDirectory: ./db
+${nullExclude}olcDbDirectory: ./db
 $olcDbCheckpoint: 1024 5
 olcSuffix: $BASEDN
 olcRootDN: $MANAGERDN
@@ -265,11 +271,7 @@ olcSyncRepl: rid=1 provider=$PROV_URI searchbase="$BASEDN"
   binddn="$MANAGERDN" bindmethod=simple credentials=$PASSWD
   type=refreshAndPersist retry="$RETRY" timeout=1
 
-dn: cn=module,cn=config
-objectClass: olcModuleList
-cn: module
-olcModulePath: ../../../servers/slapd/overlays
-olcModuleLoad: syncprov.la
+$syncprov_module
 
 dn: olcOverlay={0}syncprov,olcDatabase={1}$BACKEND,cn=config
 objectClass: olcOverlayConfig
@@ -293,7 +295,7 @@ dn: olcDatabase={1}$BACKEND,cn=config
 objectClass: olcDatabaseConfig
 objectClass: olc${BACKEND}Config
 olcDatabase: {1}$BACKEND
-olcDbDirectory: ./db
+${nullExclude}olcDbDirectory: ./db
 $olcDbCheckpoint: 1024 5
 olcSuffix: $BASEDN
 olcRootDN: $MANAGERDN
@@ -406,7 +408,7 @@ EOF
 			for j in 1 2 3 4 5; do
 				RESULT=`$LDAPSEARCH -H $uri -s base -b "ou=$i,$BASEDN" 2>&1 \
 					| awk '/^dn:/ {print "OK"}'`
-				if test "x$RESULT" = "xOK" ; then
+				if test "x$RESULT$nullOK" = "xOK" ; then
 					RC=0
 					break
 				fi
@@ -515,7 +517,7 @@ EOF
 			for j in 1 2 3 4 5; do
 				RESULT=`$LDAPSEARCH -H $uri -s base -b "ou=$i,$BASEDN" 2>&1 \
 					| awk '/^dn:/ {print "OK"}'`
-				if test "x$RESULT" = "xOK" ; then
+				if test "x$RESULT$nullOK" = "xOK" ; then
 					RC=0
 					break
 				fi
@@ -624,6 +626,7 @@ EOF
 	CSN3=`$LDAPSEARCH -H $URI3 -b $BASEDN -s base contextCSN | grep contextCSN`
 
 	if test -z "$CSN1" ; then
+		test $BACKEND = null && break
 		echo "ERROR: contextCSN empty on provider"
 		ERROR=1
 		break

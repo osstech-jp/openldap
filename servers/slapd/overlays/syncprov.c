@@ -1,4 +1,4 @@
-/* $OpenLDAP: pkg/ldap/servers/slapd/overlays/syncprov.c,v 1.316 2010/11/15 14:42:06 rein Exp $ */
+/* $OpenLDAP$ */
 /* syncprov.c - syncrepl provider */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
@@ -133,6 +133,9 @@ typedef struct syncprov_info_t {
 	int		si_numops;	/* number of ops since last checkpoint */
 	int		si_nopres;	/* Skip present phase */
 	int		si_usehint;	/* use reload hint */
+	int		si_active;	/* True if there are active mods */
+	int		si_dirty;	/* True if the context is dirty, i.e changes
+						 * have been made without updating the csn. */
 	time_t	si_chklast;	/* time of last checkpoint */
 	Avlnode	*si_mods;	/* entries being modified */
 	sessionlog	*si_logs;
@@ -1377,6 +1380,11 @@ syncprov_op_cleanup( Operation *op, SlapReply *rs )
 	syncmatches *sm, *snext;
 	modtarget *mt, mtdummy;
 
+	ldap_pvt_thread_mutex_lock( &si->si_ops_mutex );
+	if ( si->si_active )
+		si->si_active--;
+	ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
+
 	for (sm = opc->smatches; sm; sm=snext) {
 		snext = sm->sm_next;
 		syncprov_free_syncop( sm->sm_op );
@@ -1807,20 +1815,25 @@ syncprov_op_response( Operation *op, SlapReply *rs )
 					csn_changed = 1;
 				}
 			}
+			if ( csn_changed )
+				si->si_dirty = 0;
 			ldap_pvt_thread_rdwr_wunlock( &si->si_csn_rwlock );
 
 			if ( csn_changed ) {
+				syncops *ss;
 				ldap_pvt_thread_mutex_lock( &si->si_ops_mutex );
-				have_psearches = ( si->si_ops != NULL );
-				ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
-
-				if ( have_psearches ) {
-					for ( sm = opc->smatches; sm; sm=sm->sm_next ) {
-						if ( sm->sm_op->s_op->o_abandon )
-							continue;
-						syncprov_qresp( opc, sm->sm_op, LDAP_SYNC_NEW_COOKIE );
-					}
+				for ( ss = si->si_ops; ss; ss = ss->s_next ) {
+					if ( ss->s_op->o_abandon )
+						continue;
+					/* Send the updated csn to all syncrepl consumers,
+					 * including the server from which it originated.
+					 * The syncrepl consumer and syncprov provider on
+					 * the originating server may be configured to store
+					 * their csn values in different entries.
+					 */
+					syncprov_qresp( opc, ss, LDAP_SYNC_NEW_COOKIE );
 				}
+				ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
 			}
 			} else {
 			ldap_pvt_thread_rdwr_wunlock( &si->si_csn_rwlock );
@@ -1850,6 +1863,7 @@ syncprov_op_response( Operation *op, SlapReply *rs )
 				}
 			}
 		}
+		si->si_dirty = !csn_changed;
 		ldap_pvt_thread_rdwr_wunlock( &si->si_csn_rwlock );
 
 		if ( do_check ) {
@@ -1977,6 +1991,7 @@ syncprov_op_mod( Operation *op, SlapReply *rs )
 
 	ldap_pvt_thread_mutex_lock( &si->si_ops_mutex );
 	have_psearches = ( si->si_ops != NULL );
+	si->si_active++;
 	ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
 
 	cbsize = sizeof(slap_callback) + sizeof(opcookie) +
@@ -2367,6 +2382,7 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 	BerVarray ctxcsn;
 	int i, *sids, numcsns;
 	struct berval mincsn;
+	int dirty = 0;
 
 	if ( !(op->o_sync_mode & SLAP_SYNC_REFRESH) ) return SLAP_CB_CONTINUE;
 
@@ -2411,6 +2427,20 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 		sop->s_inuse = 1;
 
 		ldap_pvt_thread_mutex_lock( &si->si_ops_mutex );
+		while ( si->si_active ) {
+			/* Wait for active mods to finish before proceeding, as they
+			 * may already have inspected the si_ops list looking for
+			 * consumers to replicate the change to.  Using the log
+			 * doesn't help, as we may finish playing it before the
+			 * active mods gets added to it.
+			 */
+			ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
+			if ( slapd_shutdown )
+				return SLAPD_ABANDON;
+			if ( !ldap_pvt_thread_pool_pausecheck( &connection_pool ))
+				ldap_pvt_thread_yield();
+			ldap_pvt_thread_mutex_lock( &si->si_ops_mutex );
+		}
 		sop->s_next = si->si_ops;
 		si->si_ops = sop;
 		ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
@@ -2428,6 +2458,7 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 		ctxcsn = NULL;
 		sids = NULL;
 	}
+	dirty = si->si_dirty;
 	ldap_pvt_thread_rdwr_runlock( &si->si_csn_rwlock );
 	
 	/* If we have a cookie, handle the PRESENT lookups */
@@ -2507,7 +2538,7 @@ bailout:
 				if ( changed )
 					break;
 			}
-			if ( !changed ) {
+			if ( !changed && !dirty ) {
 				do_present = 0;
 no_change:		if ( !(op->o_sync_mode & SLAP_SYNC_PERSIST) ) {
 					LDAPControl	*ctrls[2];
@@ -2591,7 +2622,7 @@ shortcut:
 	}
 
 	/* If something changed, find the changes */
-	if ( gotstate && changed ) {
+	if ( gotstate && ( changed || dirty ) ) {
 		Filter *fand, *fava;
 
 		fand = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
@@ -2636,7 +2667,7 @@ shortcut:
 	 * the refresh phase, just invoke the response callback to transition
 	 * us into persist phase
 	 */
-	if ( !changed ) {
+	if ( !changed && !dirty ) {
 		rs->sr_err = LDAP_SUCCESS;
 		rs->sr_nentries = 0;
 		send_ldap_result( op, rs );

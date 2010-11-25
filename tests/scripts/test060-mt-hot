@@ -1,5 +1,5 @@
 #! /bin/sh
-# $OpenLDAP: pkg/ldap/tests/scripts/test060-mt-hot,v 1.5 2010/10/23 22:01:37 hyc Exp $
+# $OpenLDAP$
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
 ## Copyright 1998-2009 The OpenLDAP Foundation.
@@ -15,6 +15,11 @@
 
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh
+
+if test $MONITORDB = "no" ; then 
+	echo "Monitor backend not available, test skipped"
+	exit 0
+fi 
 
 mkdir -p $TESTDIR $DBDIR1
 

@@ -1,4 +1,4 @@
-/* $OpenLDAP: pkg/ldap/tests/progs/slapd-mtread.c,v 1.2 2010/10/23 22:01:11 hyc Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1999-2009 The OpenLDAP Foundation.
@@ -82,6 +82,7 @@ int	rt_pass[MAX_THREAD];
 int	rt_fail[MAX_THREAD];
 int	rwt_pass[MAX_THREAD];
 int	rwt_fail[MAX_THREAD];
+ldap_pvt_thread_t	rtid[MAX_THREAD], rwtid[MAX_THREAD];
 
 /*
  * Shared globals (command line args)
@@ -174,7 +175,6 @@ main( int argc, char **argv )
 	int		port = -1;
 	char		*manager = NULL;
 	struct berval	passwd = { 0, NULL };
-	ldap_pvt_thread_t	rtid[MAX_THREAD], rwtid[MAX_THREAD];
 	char		outstr[BUFSIZ];
 	int		ptpass;
 	int		testfail = 0;
@@ -342,14 +342,14 @@ main( int argc, char **argv )
 
 	/* Set up read only threads */
 	for ( i = 0; i < threads; i++ ) {
-		ldap_pvt_thread_create( &rtid[i], 0, do_onethread, (void*)i);
-		snprintf(outstr, BUFSIZ, "Created RO thread %d [%d]", i, rtid[i]);
+		ldap_pvt_thread_create( &rtid[i], 0, do_onethread, &rtid[i]);
+		snprintf(outstr, BUFSIZ, "Created RO thread %d [%d]", i, (int)rtid[i]);
 		thread_verbose(outstr);
 	}
 	/* Set up read/write threads */
 	for ( i = 0; i < rwthreads; i++ ) {
-		ldap_pvt_thread_create( &rwtid[i], 0, do_onerwthread, (void*)i);
-		snprintf(outstr, BUFSIZ, "Created RW thread %d [%d]", i, rwtid[i]);
+		ldap_pvt_thread_create( &rwtid[i], 0, do_onerwthread, &rwtid[i]);
+		snprintf(outstr, BUFSIZ, "Created RW thread %d [%d]", i, (int)rwtid[i]);
 		thread_verbose(outstr);
 	}
 
@@ -405,7 +405,7 @@ do_onethread( void *arg )
 	int		me = whoami();
 	char		thrstr[BUFSIZ];
 	int		rc, refcnt = 0;
-	int		myidx = (int)arg;
+	int		myidx = (ldap_pvt_thread_t *)arg - rtid;
 
 	mlds = (LDAP **) calloc( sizeof(LDAP *), noconns);
 	if (mlds == NULL) {
@@ -472,7 +472,7 @@ do_onerwthread( void *arg )
 	int		adds = 0;
 	int		dels = 0;
 	int		rc, refcnt = 0;
-	int		myidx = (int)arg;
+	int		myidx = (ldap_pvt_thread_t *)arg - rwtid;
 
 	mlds = (LDAP **) calloc( sizeof(LDAP *), noconns);
 	if (mlds == NULL) {
@@ -684,7 +684,7 @@ do_random( LDAP *ld,
 		}
 		for( i = 0; i < nvalues; i++) {
 			if (values[i] != NULL)
-				free( values[i] );
+				ldap_memfree( values[i] );
 		}
 		free( values );
 		break;
@@ -714,8 +714,8 @@ retry:;
 		thread_verbose( thrstr );
 	}
 
-	snprintf(thrstr, BUFSIZ, "tid: %d LD %x cnt: %d (retried %d) (%s)", \
-		 whoami(), ld, maxloop, (do_retry - maxretries), entry);
+	snprintf(thrstr, BUFSIZ, "tid: %d LD %p cnt: %d (retried %d) (%s)", \
+		 whoami(), (void *) ld, maxloop, (do_retry - maxretries), entry);
 	thread_verbose( thrstr );
 
 	for ( ; i < maxloop; i++ ) {
