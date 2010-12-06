@@ -1,5 +1,5 @@
 /* abandon.c */
-/* $OpenLDAP: pkg/ldap/libraries/libldap/abandon.c,v 1.63 2010/10/22 19:45:48 hyc Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 1998-2010 The OpenLDAP Foundation.
@@ -279,7 +279,9 @@ start_again:;
 
 	if ( lr != NULL ) {
 		if ( sendabandon || lr->lr_status == LDAP_REQST_WRITING ) {
+			LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
 			ldap_free_connection( ld, lr->lr_conn, 0, 1 );
+			LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		}
 
 		if ( origid == msgid ) {
@@ -445,4 +447,3 @@ ldap_int_bisect_delete( ber_int_t **vp, ber_len_t *np, int id, int idx )
 
 	return 0;
 }
-
