@@ -1,5 +1,5 @@
 /* chain.c - chain LDAP operations */
-/* $OpenLDAP: pkg/ldap/servers/slapd/back-ldap/chain.c,v 1.82 2010/11/14 22:53:54 ando Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
  * Copyright 2003-2010 The OpenLDAP Foundation.
@@ -682,7 +682,7 @@ ldap_chain_search(
 	 * to be set once for all (correct?) */
 	li.li_bvuri = bvuri;
 	for ( ; !BER_BVISNULL( &ref[0] ); ref++ ) {
-		SlapReply	rs2 = { 0 };
+		SlapReply	rs2 = { REP_RESULT };
 		LDAPURLDesc	*srv;
 		req_search_s	save_oq_search = op->oq_search,
 				tmp_oq_search = { 0 };
