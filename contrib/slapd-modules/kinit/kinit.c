@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/contrib/slapd-modules/kinit/kinit.c,v 1.1 2010/10/22 12:31:56 ralf Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2010 The OpenLDAP Foundation.
+ * Copyright 2010-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
