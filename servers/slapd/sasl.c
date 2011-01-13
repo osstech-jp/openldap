@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -509,7 +509,6 @@ slap_auxprop_store(
 {
 	Operation op = {0};
 	Opheader oph;
-	SlapReply rs = {REP_RESULT};
 	int rc, i;
 	unsigned j;
 	Connection *conn = NULL;
@@ -548,7 +547,7 @@ slap_auxprop_store(
 					op.o_req_ndn.bv_val = (char *)pr[i].values[0];
 			}
 #ifdef SLAP_AUXPROP_DONTUSECOPY
-			{
+			if ( slap_dontUseCopy_propnames != NULL ) {
 				struct berval bv;
 				ber_str2bv( &pr[i].name[1], 0, 1, &bv );
 				for ( j = 0; !BER_BVISNULL( &slap_dontUseCopy_propnames[ j ] ); j++ ) {
@@ -623,20 +622,23 @@ slap_auxprop_store(
 			op.o_req_dn = op.o_req_ndn;
 			op.orm_modlist = modlist;
 
-retry_dontUseCopy:;
-			rc = op.o_bd->be_modify( &op, &rs );
+			for (;;) {
+				SlapReply rs = {REP_RESULT};
+				rc = op.o_bd->be_modify( &op, &rs );
 
 #ifdef SLAP_AUXPROP_DONTUSECOPY
-			if ( dontUseCopy &&
-				rs.sr_err == LDAP_UNAVAILABLE &&
-				slap_dontUseCopy_ignore )
-			{
-				op.o_bd = dontUseCopy_bd;
-				op.o_dontUseCopy = SLAP_CONTROL_NONE;
-				dontUseCopy = 0;
-				goto retry_dontUseCopy;
-			}
+				if ( dontUseCopy &&
+					rs.sr_err == LDAP_UNAVAILABLE &&
+					slap_dontUseCopy_ignore )
+				{
+					op.o_bd = dontUseCopy_bd;
+					op.o_dontUseCopy = SLAP_CONTROL_NONE;
+					dontUseCopy = 0;
+					continue;
+				}
 #endif /* SLAP_AUXPROP_DONTUSECOPY */
+				break;
+			}
 		}
 	}
 	slap_mods_free( modlist, 1 );
@@ -1715,7 +1717,7 @@ int slap_sasl_bind( Operation *op, SlapReply *rs )
 		/* EXTERNAL */
 
 		if( op->orb_cred.bv_len ) {
-			rs->sr_text = "proxy authorization not support";
+			rs->sr_text = "proxy authorization not supported";
 			rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 			send_ldap_result( op, rs );
 

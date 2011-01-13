@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2007-2010 The OpenLDAP Foundation.
+ * Copyright 2007-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,10 +135,7 @@ usn_operational(
 				}
 
 			if ( !ap ) {
-				if ( !rs->sr_flags & REP_ENTRY_MODIFIABLE ) {
-					rs->sr_entry = entry_dup( rs->sr_entry );
-					rs->sr_flags |=
-						REP_ENTRY_MODIFIABLE|REP_ENTRY_MUSTBEFREED;
+				if ( rs_ensure_entry_modifiable( op,rs, on )) {
 					a = attr_find( rs->sr_entry->e_attrs,
 						ad_usnChanged );
 				}
@@ -233,7 +230,6 @@ usn_db_close(
 	void *thrctx;
 
 	Modifications mod;
-	SlapReply rsm = { 0 };
 	slap_callback cb = {0};
 	char intbuf[64];
 	struct berval bv[2];

@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * Portions Copyright 1998-2003 Kurt D. Zeilenga.
  * Portions Copyright 1998-2001 Net Boolean Incorporated.
  * Portions Copyright 2001-2003 IBM Corporation.
@@ -111,8 +111,7 @@ main( int argc, char *argv[] )
 	int		rc;
 	LDAP		*ld = NULL;
 	char		*matcheddn = NULL, *text = NULL, **refs = NULL;
-	char		*retoid = NULL;
-	struct berval	*retdata = NULL;
+	struct berval	*authzid = NULL;
 	int		id, code = 0;
 	LDAPMessage	*res;
 	LDAPControl	**ctrls = NULL;
@@ -182,23 +181,24 @@ main( int argc, char *argv[] )
 		goto skip;
 	}
 
-	rc = ldap_parse_extended_result( ld, res, &retoid, &retdata, 1 );
+	rc = ldap_parse_whoami( ld, res, &authzid );
 
 	if( rc != LDAP_SUCCESS ) {
-		tool_perror( "ldap_parse_extended_result", rc, NULL, NULL, NULL, NULL );
+		tool_perror( "ldap_parse_whoami", rc, NULL, NULL, NULL, NULL );
 		rc = EXIT_FAILURE;
 		goto skip;
 	}
 
-	if( retdata != NULL ) {
-		if( retdata->bv_len == 0 ) {
+	if( authzid != NULL ) {
+		if( authzid->bv_len == 0 ) {
 			printf(_("anonymous\n") );
 		} else {
-			printf("%s\n", retdata->bv_val );
+			printf("%s\n", authzid->bv_val );
 		}
 	}
 
 skip:
+	ldap_msgfree(res);
 	if ( verbose || ( code != LDAP_SUCCESS ) ||
 		matcheddn || text || refs || ctrls )
 	{
@@ -228,8 +228,7 @@ skip:
 	ber_memfree( text );
 	ber_memfree( matcheddn );
 	ber_memvfree( (void **) refs );
-	ber_memfree( retoid );
-	ber_bvfree( retdata );
+	ber_bvfree( authzid );
 
 	/* disconnect from server */
 	tool_unbind( ld );

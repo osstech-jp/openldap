@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2010 The OpenLDAP Foundation.
+ * Copyright 1999-2011 The OpenLDAP Foundation.
  * Portions Copyright 2001-2003 Pierangelo Masarati.
  * Portions Copyright 1999-2003 Howard Chu.
  * All rights reserved.
@@ -908,7 +908,7 @@ meta_back_get_candidate(
 
 	} else if ( candidate == META_TARGET_MULTIPLE ) {
 		Operation	op2 = *op;
-		SlapReply	rs2 = { 0 };
+		SlapReply	rs2 = { REP_RESULT };
 		slap_callback	cb2 = { 0 };
 		int		rc;
 
@@ -1891,4 +1891,3 @@ meta_back_quarantine(
 done:;
 	ldap_pvt_thread_mutex_unlock( &mt->mt_quarantine_mutex );
 }
-

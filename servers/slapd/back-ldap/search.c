@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2010 The OpenLDAP Foundation.
+ * Copyright 1999-2011 The OpenLDAP Foundation.
  * Portions Copyright 1999-2003 Howard Chu.
  * Portions Copyright 2000-2003 Pierangelo Masarati.
  * All rights reserved.
@@ -172,6 +172,9 @@ ldap_back_search(
 
 	/* FIXME: shouldn't this be null? */
 	const char	*save_matched = rs->sr_matched;
+
+	rs_assert_ready( rs );
+	rs->sr_flags &= ~REP_ENTRY_MASK; /* paranoia, we can set rs = non-entry */
 
 	if ( !ldap_back_dobind( &lc, op, rs, LDAP_BACK_SENDERR ) ) {
 		return rs->sr_err;
@@ -371,6 +374,7 @@ retry:
 					rs->sr_ctrls = NULL;
 				}
 				rs->sr_entry = NULL;
+				rs->sr_flags = 0;
 				if ( !BER_BVISNULL( &ent.e_name ) ) {
 					assert( ent.e_name.bv_val != bdn.bv_val );
 					op->o_tmpfree( ent.e_name.bv_val, op->o_tmpmemctx );
@@ -428,6 +432,7 @@ retry:
 				BER_BVZERO( &rs->sr_ref[ cnt ] );
 
 				/* ignore return value by now */
+				RS_ASSERT( !(rs->sr_flags & REP_ENTRY_MASK) );
 				rs->sr_entry = NULL;
 				( void )send_search_reference( op, rs );
 
@@ -1011,4 +1016,3 @@ cleanup:
 
 	return rc;
 }
-

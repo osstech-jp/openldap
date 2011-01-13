@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,10 @@
 
 #include "lutil.h"
 #include "slap.h"
+
+#ifdef LDAP_CONNECTIONLESS
+#include "../../libraries/liblber/lber-int.h"	/* ber_int_sb_read() */
+#endif
 
 #ifdef LDAP_SLAPI
 #include "slapi/slapi.h"
@@ -272,12 +276,11 @@ static Connection* connection_get( ber_socket_t s )
 		if( c->c_struct_state != SLAP_C_USED ) {
 			/* connection must have been closed due to resched */
 
-			assert( c->c_conn_state == SLAP_C_INVALID );
-			assert( c->c_sd == AC_SOCKET_INVALID );
-
 			Debug( LDAP_DEBUG_CONNS,
 				"connection_get(%d): connection not used\n",
 				s, 0, 0 );
+			assert( c->c_conn_state == SLAP_C_INVALID );
+			assert( c->c_sd == AC_SOCKET_INVALID );
 
 			ldap_pvt_thread_mutex_unlock( &c->c_mutex );
 			return NULL;
@@ -699,7 +702,6 @@ static void connection_abandon( Connection *c )
 
 	Operation *o, *next, op = {0};
 	Opheader ohdr = {0};
-	SlapReply rs = {0};
 
 	op.o_hdr = &ohdr;
 	op.o_conn = c;
@@ -707,6 +709,8 @@ static void connection_abandon( Connection *c )
 	op.o_tag = LDAP_REQ_ABANDON;
 
 	for ( o = LDAP_STAILQ_FIRST( &c->c_ops ); o; o=next ) {
+		SlapReply rs = {REP_RESULT};
+
 		next = LDAP_STAILQ_NEXT( o, o_next );
 		op.orn_msgid = o->o_msgid;
 		o->o_abandon = 1;
@@ -1522,8 +1526,8 @@ connection_input( Connection *conn , conn_readinfo *cri )
 #ifdef LDAP_CONNECTIONLESS
 	if( conn->c_is_udp ) {
 		if( tag == LBER_OCTETSTRING ) {
-			ber_get_stringa( ber, &cdn );
-			tag = ber_peek_tag(ber, &len);
+			if ( (tag = ber_get_stringa( ber, &cdn )) != LBER_ERROR )
+				tag = ber_peek_tag( ber, &len );
 		}
 		if( tag != LDAP_REQ_ABANDON && tag != LDAP_REQ_SEARCH ) {
 			Debug( LDAP_DEBUG_ANY, "invalid req for UDP 0x%lx\n", tag, 0, 0 );

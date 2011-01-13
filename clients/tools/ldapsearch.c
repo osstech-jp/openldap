@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * Portions Copyright 1998-2003 Kurt D. Zeilenga.
  * Portions Copyright 1998-2001 Net Boolean Incorporated.
  * Portions Copyright 2001-2003 IBM Corporation.
@@ -1350,8 +1350,10 @@ getNextPage:
 	if ( derefval.bv_val != NULL ) {
 		ldap_memfree( derefval.bv_val );
 	}
-	if ( def_urlpre != NULL ) {
-		ber_memfree( def_urlpre );
+	if ( urlpre != NULL ) {
+		if ( def_urlpre != urlpre )
+			free( def_urlpre );
+		free( urlpre );
 	}
 
 	if ( c ) {
@@ -1906,4 +1908,3 @@ static int print_result(
 
 	return err;
 }
-

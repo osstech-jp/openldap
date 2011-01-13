@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2007-2010 The OpenLDAP Foundation.
+ * Copyright 2007-2011 The OpenLDAP Foundation.
  * Portions Copyright 2007 Michał Szulczyński.
  * Portions Copyright 2009 Howard Chu.
  * All rights reserved.
@@ -448,6 +448,8 @@ autogroup_add_members_from_filter( Operation *op, Entry *e, autogroup_entry_t *a
 	o.o_bd->bd_info = (BackendInfo *)on;	
 
 	if ( modify == 1 && agg.agg_mod ) {
+		rs_reinit( &rs, REP_RESULT );
+
 		o = *op;
 		o.o_callback = &null_cb;
 		o.o_tag = LDAP_REQ_MODIFY;
@@ -1703,7 +1705,6 @@ autogroup_db_open(
 	autogroup_def_t		*agd;
 	autogroup_sc_t		ags;
 	Operation		*op;
-	SlapReply		rs = { REP_RESULT };
 	slap_callback		cb = { 0 };
 
 	void				*thrctx = ldap_pvt_thread_pool_context();
@@ -1712,7 +1713,7 @@ autogroup_db_open(
 
 	Debug( LDAP_DEBUG_TRACE, "==> autogroup_db_open\n", 0, 0, 0);
 
-	if ( agi == NULL ) {
+	if ( agi == NULL || !( slapMode & SLAP_SERVER_MODE )) {
 		return 0;
 	}
 
@@ -1746,6 +1747,7 @@ autogroup_db_open(
 	op->o_callback = &cb;
 
 	for (agd = agi->agi_def ; agd ; agd = agd->agd_next) {
+		SlapReply	rs = { REP_RESULT };
 
 		autogroup_build_def_filter(agd, op);
 

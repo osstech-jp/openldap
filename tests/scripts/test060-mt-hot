@@ -2,7 +2,7 @@
 # $OpenLDAP$
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
-## Copyright 1998-2009 The OpenLDAP Foundation.
+## Copyright 1998-2011 The OpenLDAP Foundation.
 ## All rights reserved.
 ##
 ## Redistribution and use in source and binary forms, with or without
@@ -12,6 +12,9 @@
 ## A copy of this license is available in the file LICENSE in the
 ## top-level directory of the distribution or, alternatively, at
 ## <http://www.OpenLDAP.org/license.html>.
+
+# The default debug level logs more than 1Gb:
+SLAPD_DEBUG=${SLAPD_DEBUG_MT_HOT-stats}
 
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh

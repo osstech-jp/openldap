@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -519,6 +519,15 @@ LDAP_SLAPD_F (void) ch_free LDAP_P(( void * ));
 #endif
 
 /*
+ * compare.c
+ */
+
+LDAP_SLAPD_F (int) slap_compare_entry LDAP_P((
+	Operation *op,
+	Entry *e,
+	AttributeAssertion *ava ));
+
+/*
  * component.c
  */
 #ifdef LDAP_COMP_MATCH
@@ -641,6 +650,11 @@ LDAP_SLAPD_F (int) get_ctrls LDAP_P((
 	Operation *op,
 	SlapReply *rs,
 	int senderrors ));
+LDAP_SLAPD_F (int) get_ctrls2 LDAP_P((
+	Operation *op,
+	SlapReply *rs,
+	int senderrors,
+	ber_tag_t ctag ));
 LDAP_SLAPD_F (int) register_supported_control2 LDAP_P((
 	const char *controloid,
 	slap_mask_t controlmask,
@@ -986,6 +1000,7 @@ LDAP_SLAPD_F (int) entry_destroy LDAP_P((void));
 LDAP_SLAPD_F (Entry *) str2entry LDAP_P(( char	*s ));
 LDAP_SLAPD_F (Entry *) str2entry2 LDAP_P(( char	*s, int checkvals ));
 LDAP_SLAPD_F (char *) entry2str LDAP_P(( Entry *e, int *len ));
+LDAP_SLAPD_F (char *) entry2str_wrap LDAP_P(( Entry *e, int *len, ber_len_t wrap ));
 
 LDAP_SLAPD_F (ber_len_t) entry_flatsize LDAP_P(( Entry *e, int norm ));
 LDAP_SLAPD_F (void) entry_partsize LDAP_P(( Entry *e, ber_len_t *len,
@@ -1527,6 +1542,27 @@ LDAP_SLAPD_F (int) get_alias_dn LDAP_P((
 /*
  * result.c
  */
+#if USE_RS_ASSERT /*defined(USE_RS_ASSERT)?(USE_RS_ASSERT):defined(LDAP_TEST)*/
+# define RS_ASSERT				assert
+#else
+# define RS_ASSERT(cond)		((void) 0)
+# define rs_assert_ok(rs)		((void) (rs))
+# define rs_assert_ready(rs)	((void) (rs))
+# define rs_assert_done(rs)		((void) (rs))
+#endif
+LDAP_SLAPD_F (void) (rs_assert_ok)		LDAP_P(( const SlapReply *rs ));
+LDAP_SLAPD_F (void) (rs_assert_ready)	LDAP_P(( const SlapReply *rs ));
+LDAP_SLAPD_F (void) (rs_assert_done)	LDAP_P(( const SlapReply *rs ));
+
+#define rs_reinit(rs, type)	do {			\
+		SlapReply *const rsRI = (rs);		\
+		rs_assert_done( rsRI );				\
+		memset( rsRI, 0, sizeof(*rsRI) );	\
+		rsRI->sr_type = (type);				\
+	} while ( 0 )
+LDAP_SLAPD_F (void) (rs_reinit)	LDAP_P(( SlapReply *rs, slap_reply_t type ));
+LDAP_SLAPD_F (void) rs_flush_entry LDAP_P(( Operation *op,
+	SlapReply *rs, slap_overinst *on ));
 LDAP_SLAPD_F (void) rs_replace_entry LDAP_P(( Operation *op,
 	SlapReply *rs, slap_overinst *on, Entry *e ));
 LDAP_SLAPD_F (int) rs_ensure_entry_modifiable LDAP_P(( Operation *op,
@@ -2136,4 +2172,3 @@ LDAP_SLAPD_F (int) fe_access_allowed LDAP_P((
 LDAP_END_DECL
 
 #endif /* PROTO_SLAP_H */
-

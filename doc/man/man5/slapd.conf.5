@@ -1,5 +1,5 @@
 .TH SLAPD.CONF 5 "RELEASEDATE" "OpenLDAP LDVERSION"
-.\" Copyright 1998-2010 The OpenLDAP Foundation All Rights Reserved.
+.\" Copyright 1998-2011 The OpenLDAP Foundation All Rights Reserved.
 .\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
 .\" $OpenLDAP$
 .SH NAME
@@ -565,6 +565,11 @@ since no handlers would be associated to the resulting syntax structure.
 .RE
 
 .TP
+.B listener-threads <integer>
+Specify the number of threads to use for the connection manager.
+The default is 1 and this is typically adequate for up to 16 CPU cores.
+The value should be set to a power of 2.
+.TP
 .B localSSF <SSF>
 Specifies the Security Strength Factor (SSF) to be given local LDAP sessions,
 such as those to the ldapi:// listener.  For a description of SSF values,
@@ -1029,22 +1034,37 @@ you can specify.
 .TP
 .B TLSCipherSuite <cipher-suite-spec>
 Permits configuring what ciphers will be accepted and the preference order.
-<cipher-suite-spec> should be a cipher specification for OpenSSL.  Example:
-
+<cipher-suite-spec> should be a cipher specification for OpenSSL resp. GNUtls.
+Example:
+.RS
+.RS
+.TP
+.I OpenSSL:
 TLSCipherSuite HIGH:MEDIUM:+SSLv2
+.TP
+.I GNUtls:
+TLSCiphersuite SECURE256:!AES-128-CBC
+.RE
 
-To check what ciphers a given spec selects, use:
+To check what ciphers a given spec selects in OpenSSL, use:
 
 .nf
 	openssl ciphers \-v <cipher-suite-spec>
 .fi
 
-To obtain the list of ciphers in GNUtls use:
+With GNUtls the available specs can be found in the manual page of 
+.BR gnutls\-cli (1)
+(see the description of the 
+option
+.BR \-\-priority ).
+
+In older versions of GNUtls, where gnutls\-cli does not support the option
+\-\-priority, you can obtain the \(em more limited \(em list of ciphers by calling:
 
 .nf
-	gnutls-cli \-l
+	gnutls\-cli \-l
 .fi
-
+.RE
 .TP
 .B TLSCACertificateFile <filename>
 Specifies the file that contains certificates for all of the Certificate
@@ -1943,6 +1963,7 @@ ETCDIR/slapd.conf
 default slapd configuration file
 .SH SEE ALSO
 .BR ldap (3),
+.BR gnutls\-cli (1),
 .BR slapd\-config (5),
 .BR slapd.access (5),
 .BR slapd.backends (5),

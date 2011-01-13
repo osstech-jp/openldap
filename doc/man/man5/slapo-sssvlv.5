@@ -1,5 +1,5 @@
 .TH SLAPO-SSSVLV 5 "RELEASEDATE" "OpenLDAP LDVERSION"
-.\" Copyright 2009-2010 The OpenLDAP Foundation All Rights Reserved.
+.\" Copyright 2009-2011 The OpenLDAP Foundation All Rights Reserved.
 .\" Copyright 2009 Symas Corporation All Rights Reserved.
 .\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
 .\" $OpenLDAP$
@@ -34,6 +34,10 @@ connections. The default is one half of the number of server threads.
 .TP
 .B sssvlv\-maxkeys <num>
 Set the maximum number of keys allowed in a sort request. The default is 5.
+.TP
+.B sssvlv\-maxperconn <num>
+Set the maximum number of concurrent paged search requests per connection. The default is 5. The number of concurrent requests remains limited by
+.B sssvlv-max.
 .SH FILES
 .TP
 ETCDIR/slapd.conf

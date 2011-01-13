@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -394,6 +394,10 @@ int ber_flatten2(
 		/* ber is null, create an empty berval */
 		bv->bv_val = NULL;
 		bv->bv_len = 0;
+
+	} else if ( ber->ber_sos_ptr != NULL ) {
+		/* unmatched "{" and "}" */
+		return -1;
 
 	} else {
 		/* copy the berval */

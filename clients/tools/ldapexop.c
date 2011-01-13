@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2005-2010 The OpenLDAP Foundation.
+ * Copyright 2005-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ main( int argc, char *argv[] )
 	char		*matcheddn = NULL, *text = NULL, **refs = NULL;
 	LDAPControl **ctrls = NULL;
 	int		id, code;
-	LDAPMessage	*res;
+	LDAPMessage	*res = NULL;
 
 	tool_init( TOOL_EXOP );
 	prog = lutil_progname( "ldapexop", argc, argv );
@@ -348,6 +348,8 @@ main( int argc, char *argv[] )
 
 skip:
 	/* disconnect from server */
+	if ( res )
+		ldap_msgfree( res );
 	tool_unbind( ld );
 	tool_destroy();
 

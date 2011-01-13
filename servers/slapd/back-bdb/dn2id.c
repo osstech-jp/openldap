@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2010 The OpenLDAP Foundation.
+ * Copyright 2000-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -151,7 +151,6 @@ bdb_dn2id_delete(
 	DB *db = bdb->bi_dn2id->bdi_db;
 	char		*buf;
 	DBT		key;
-	DB_LOCK	lock;
 	struct berval	pdn, ptr;
 	int		rc;
 
@@ -614,7 +613,6 @@ hdb_dn2id_delete(
 	int rc;
 	ID	nid;
 	unsigned char dlen[2];
-	DB_LOCK	lock;
 
 	Debug( LDAP_DEBUG_TRACE, "=> hdb_dn2id_delete 0x%lx: \"%s\"\n",
 		e->e_id, e->e_ndn, 0 );

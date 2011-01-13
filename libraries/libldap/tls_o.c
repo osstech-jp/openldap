@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2008-2010 The OpenLDAP Foundation.
+ * Copyright 2008-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,6 @@
 
 #include "ldap-int.h"
 #include "ldap-tls.h"
-
-#ifdef LDAP_R_COMPILE
-#include <ldap_pvt_thread.h>
-#endif
 
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
@@ -1214,14 +1210,10 @@ tlso_tmp_dh_cb( SSL *ssl, int is_export, int key_length )
 	int i;
 
 	/* Do we have params of this length already? */
-#ifdef LDAP_R_COMPILE
-	ldap_pvt_thread_mutex_lock( &tlso_dh_mutex );
-#endif
+	LDAP_MUTEX_LOCK( &tlso_dh_mutex );
 	for ( p = tlso_dhparams; p; p=p->next ) {
 		if ( p->keylength == key_length ) {
-#ifdef LDAP_R_COMPILE
-			ldap_pvt_thread_mutex_unlock( &tlso_dh_mutex );
-#endif
+			LDAP_MUTEX_UNLOCK( &tlso_dh_mutex );
 			return p->param;
 		}
 	}
@@ -1254,9 +1246,7 @@ tlso_tmp_dh_cb( SSL *ssl, int is_export, int key_length )
 		}
 	}
 
-#ifdef LDAP_R_COMPILE
-	ldap_pvt_thread_mutex_unlock( &tlso_dh_mutex );
-#endif
+	LDAP_MUTEX_UNLOCK( &tlso_dh_mutex );
 	return dh;
 }
 

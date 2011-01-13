@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2010 The OpenLDAP Foundation.
+ * Copyright 2000-2011 The OpenLDAP Foundation.
  * Portions Copyright 2000-2003 Kurt D. Zeilenga.
  * All rights reserved.
  *
@@ -219,6 +219,7 @@ dnssrv_back_search(
 			send_search_entry( op, rs );
 			rs->sr_entry = NULL;
 			rs->sr_attrs = NULL;
+			rs->sr_flags = 0;
 		}
 
 		entry_clean( &e );
@@ -237,4 +238,3 @@ done:
 	if( urls != NULL ) ber_bvarray_free( urls );
 	return 0;
 }
-

@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -821,6 +821,7 @@ nextresp2:
 			Debug( LDAP_DEBUG_TRACE,
 				"read1msg:  mark request completed, ld %p msgid %d\n",
 				(void *)ld, lr->lr_msgid, 0);
+			tmplr = lr;
 			while ( lr->lr_parent != NULL ) {
 				merge_error_info( ld, lr->lr_parent, lr );
 
@@ -828,6 +829,12 @@ nextresp2:
 				if ( --lr->lr_outrefcnt > 0 ) {
 					break;	/* not completely done yet */
 				}
+			}
+			/* ITS#6744: Original lr was refcounted when we retrieved it,
+			 * must release it now that we're working with the parent
+			 */
+			if ( tmplr->lr_parent ) {
+				ldap_return_request( ld, tmplr, 0 );
 			}
 
 			/* Check if all requests are finished, lr is now parent */
@@ -873,7 +880,7 @@ nextresp2:
 			}
 
 			/*
-			 * RF 4511 unsolicited (id == 0) responses
+			 * RFC 4511 unsolicited (id == 0) responses
 			 * shouldn't necessarily end the connection
 			 */
 			if ( lc != NULL && id != 0 ) {

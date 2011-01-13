@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2001-2010 The OpenLDAP Foundation.
+ * Copyright 2001-2011 The OpenLDAP Foundation.
  * Portions Copyright 2001-2003 Pierangelo Masarati.
  * All rights reserved.
  *
@@ -830,7 +830,7 @@ monitor_search2ndn(
 	OperationBuffer	opbuf;
 	Operation	*op;
 	void	*thrctx;
-	SlapReply	rs = { 0 };
+	SlapReply	rs = { REP_RESULT };
 	slap_callback	cb = { NULL, monitor_search2ndn_cb, NULL, NULL };
 	int		rc;
 
@@ -2051,7 +2051,7 @@ monitor_back_initialize(
 
 	bi->bi_extended = 0;
 
-	bi->bi_entry_release_rw = 0;
+	bi->bi_entry_release_rw = monitor_back_release;
 	bi->bi_chk_referrals = 0;
 	bi->bi_operational = monitor_back_operational;
 

@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2010 The OpenLDAP Foundation.
+ * Copyright 1999-2011 The OpenLDAP Foundation.
  * Portions Copyright 1999 Dmitry Kovalev.
  * Portions Copyright 2002 Pierangelo Masarati.
  * Portions Copyright 2004 Mark Adamson.
@@ -928,7 +928,7 @@ backsql_process_filter( backsql_srch_info *bsi, Filter *f )
 #ifdef BACKSQL_SYNCPROV
 	} else if ( ad == slap_schema.si_ad_entryCSN ) {
 		/*
-		 * support for syncrepl as producer...
+		 * support for syncrepl as provider...
 		 */
 #if 0
 		if ( !bsi->bsi_op->o_sync ) {
@@ -2513,7 +2513,7 @@ send_results:;
 #ifdef BACKSQL_SYNCPROV
 	if ( op->o_sync ) {
 		Operation	op2 = *op;
-		SlapReply	rs2 = { 0 };
+		SlapReply	rs2 = { REP_RESULT };
 		Entry		*e = entry_alloc();
 		slap_callback	cb = { 0 };
 

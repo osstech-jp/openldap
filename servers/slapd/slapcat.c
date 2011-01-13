@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * Portions Copyright 1998-2003 Kurt D. Zeilenga.
  * Portions Copyright 2003 IBM Corporation.
  * All rights reserved.
@@ -148,7 +148,7 @@ slapcat( int argc, char **argv )
 			printf( "# id=%08lx\n", (long) id );
 		}
 
-		data = entry2str( e, &len );
+		data = entry2str_wrap( e, &len, ldif_wrap );
 		be_entry_release_r( &op, e );
 
 		if ( data == NULL ) {

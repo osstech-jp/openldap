@@ -2,7 +2,7 @@
 # $OpenLDAP$
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
-## Copyright 1998-2010 The OpenLDAP Foundation.
+## Copyright 1998-2011 The OpenLDAP Foundation.
 ## Portions Copyright 2008 Red Hat, Inc. 
 ## All rights reserved.
 ##
@@ -73,7 +73,7 @@ null) nullExclude="# " ;;
 esac
 
 if [ "$MEMBEROF" = memberofmod ]; then
-	echo "Inserting memberof overlay on producer..."
+	echo "Inserting memberof overlay on provider..."
 	$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
 dn: cn=module,cn=config
 objectClass: olcModuleList

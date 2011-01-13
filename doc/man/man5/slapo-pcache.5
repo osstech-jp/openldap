@@ -1,5 +1,5 @@
 .TH SLAPO-PCACHE 5 "RELEASEDATE" "OpenLDAP LDVERSION"
-.\" Copyright 1998-2010 The OpenLDAP Foundation, All Rights Reserved.
+.\" Copyright 1998-2011 The OpenLDAP Foundation, All Rights Reserved.
 .\" Copying restrictions apply.  See the COPYRIGHT file.
 .\" Copyright 2001, Pierangelo Masarati, All rights reserved. <ando@sys-net.it>
 .\" $OpenLDAP$
@@ -49,7 +49,8 @@ with the
 .BR meta ,
 and
 .BR sql
-backends.
+backends. Please note that the underlying backend must have a configured
+.BR rootdn.
 .TP
 .B pcache <database> <max_entries> <numattrsets> <entry_limit> <cc_period> 
 The directive enables proxy caching in the current backend and sets general

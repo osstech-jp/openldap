@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2008-2010 The OpenLDAP Foundation.
+ * Copyright 2008-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -483,6 +483,7 @@ static int ndb_oc_search( Operation *op, SlapReply *rs, Ndb *ndb, NdbTransaction
 				rs->sr_flags = 0;
 				rc = send_search_entry( op, rs );
 				rs->sr_entry = NULL;
+				rs->sr_attrs = NULL;
 			} else {
 				rc = 0;
 			}

@@ -1,5 +1,5 @@
 .TH SLAPCAT 8C "RELEASEDATE" "OpenLDAP LDVERSION"
-.\" Copyright 1998-2010 The OpenLDAP Foundation All Rights Reserved.
+.\" Copyright 1998-2011 The OpenLDAP Foundation All Rights Reserved.
 .\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
 .\" $OpenLDAP$
 .SH NAME
@@ -149,7 +149,12 @@ Possible generic options/values are:
               syslog\-level=<level> (see `\-S' in slapd(8))
               syslog\-user=<user>   (see `\-l' in slapd(8))
 
-.fi
+              ldif-wrap={no|<n>}
+
+.in
+\fIn\fP is the number of columns allowed for the LDIF output
+(\fIn\fP equal to \fI0\fP uses the default, corresponding to 76).
+Use \fIno\fP for no wrap.
 .TP
 .BI \-s \ subtree-dn
 Only dump entries in the subtree specified by this DN.

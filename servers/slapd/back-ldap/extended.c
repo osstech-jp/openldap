@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2010 The OpenLDAP Foundation.
+ * Copyright 2003-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,6 +89,9 @@ ldap_back_extended(
 		SlapReply	*rs )
 {
 	int	i;
+
+	RS_ASSERT( !(rs->sr_flags & REP_ENTRY_MASK) );
+	rs->sr_flags &= ~REP_ENTRY_MASK;	/* paranoia */
 
 	for ( i = 0; exop_table[i].extended != NULL; i++ ) {
 		if ( bvmatch( &exop_table[i].oid, &op->oq_extended.rs_reqoid ) )
@@ -305,11 +308,10 @@ ldap_back_exop_generic(
 	int		do_retry = 1;
 	char		*text = NULL;
 
-	assert( lc != NULL );
-	assert( rs->sr_ctrls == NULL );
-
 	Debug( LDAP_DEBUG_ARGS, "==> ldap_back_exop_generic(%s, \"%s\")\n",
 		op->ore_reqoid.bv_val, op->o_req_dn.bv_val, 0 );
+	assert( lc != NULL );
+	assert( rs->sr_ctrls == NULL );
 
 retry:
 	rc = ldap_extended_operation( lc->lc_ld,
@@ -398,4 +400,3 @@ retry:
 
 	return rc;
 }
-

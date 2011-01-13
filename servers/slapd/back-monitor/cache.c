@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2001-2010 The OpenLDAP Foundation.
+ * Copyright 2001-2011 The OpenLDAP Foundation.
  * Portions Copyright 2001-2003 Pierangelo Masarati.
  * All rights reserved.
  *
@@ -439,3 +439,11 @@ monitor_cache_destroy(
 	return 0;
 }
 
+int monitor_back_release(
+	Operation *op,
+	Entry *e,
+	int rw )
+{
+	monitor_info_t	*mi = ( monitor_info_t * )op->o_bd->be_private;
+	return monitor_cache_release( mi, e );
+}

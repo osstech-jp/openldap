@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2005-2010 The OpenLDAP Foundation.
+ * Copyright 2005-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -4193,10 +4193,12 @@ config_setup_ldif( BackendDB *be, const char *dir, int readit ) {
 
 		op->o_tag = LDAP_REQ_ADD;
 		if ( rc == LDAP_SUCCESS && sc.frontend ) {
+			rs_reinit( &rs, REP_RESULT );
 			op->ora_e = sc.frontend;
 			rc = op->o_bd->be_add( op, &rs );
 		}
 		if ( rc == LDAP_SUCCESS && sc.config ) {
+			rs_reinit( &rs, REP_RESULT );
 			op->ora_e = sc.config;
 			rc = op->o_bd->be_add( op, &rs );
 		}
@@ -5479,6 +5481,7 @@ out2:;
 out:;
 	{	int repl = op->o_dont_replicate;
 		if ( rs->sr_err == LDAP_COMPARE_TRUE ) {
+			rs->sr_text = NULL; /* Set after config_add_internal */
 			rs->sr_err = LDAP_SUCCESS;
 			op->o_dont_replicate = 1;
 		}
@@ -5825,6 +5828,7 @@ out:
 out_noop:
 	if ( rc == LDAP_SUCCESS ) {
 		attrs_free( save_attrs );
+		rs->sr_text = NULL;
 	} else {
 		attrs_free( e->e_attrs );
 		e->e_attrs = save_attrs;
@@ -5871,7 +5875,10 @@ config_back_modify( Operation *op, SlapReply *rs )
 	rdn = ce->ce_entry->e_nname;
 	ptr = strchr( rdn.bv_val, '=' );
 	rdn.bv_len = ptr - rdn.bv_val;
-	slap_bv2ad( &rdn, &rad, &rs->sr_text );
+	rs->sr_err = slap_bv2ad( &rdn, &rad, &rs->sr_text );
+	if ( rs->sr_err != LDAP_SUCCESS ) {
+		goto out;
+	}
 
 	/* Some basic validation... */
 	for ( ml = op->orm_modlist; ml; ml = ml->sml_next ) {
@@ -6398,6 +6405,8 @@ config_build_attrs( Entry *e, AttributeType **at, AttributeDescription *ad,
 	return 0;
 }
 
+/* currently (2010) does not access rs except possibly writing rs->sr_err */
+
 Entry *
 config_build_entry( Operation *op, SlapReply *rs, CfEntryInfo *parent,
 	ConfigArgs *c, struct berval *rdn, ConfigOCs *main, ConfigOCs *extra )
@@ -6495,9 +6504,12 @@ fail:
 		op->ora_modlist = NULL;
 		slap_add_opattrs( op, NULL, NULL, 0, 0 );
 		if ( !op->o_noop ) {
-			op->o_bd->be_add( op, rs );
-			if ( ( rs->sr_err != LDAP_SUCCESS ) 
-					&& (rs->sr_err != LDAP_ALREADY_EXISTS) ) {
+			SlapReply rs2 = {REP_RESULT};
+			op->o_bd->be_add( op, &rs2 );
+			rs->sr_err = rs2.sr_err;
+			rs_assert_done( &rs2 );
+			if ( ( rs2.sr_err != LDAP_SUCCESS ) 
+					&& (rs2.sr_err != LDAP_ALREADY_EXISTS) ) {
 				goto fail;
 			}
 		}
@@ -6778,9 +6790,11 @@ config_back_db_open( BackendDB *be, ConfigReply *cr )
 
 	/* Create schema nodes for included schema... */
 	if ( cfb->cb_config->c_kids ) {
+		int rc;
 		c.depth = 0;
 		c.ca_private = cfb->cb_config->c_kids;
-		if (config_build_schema_inc( &c, ce, op, &rs )) {
+		rc = config_build_schema_inc( &c, ce, op, &rs );
+		if ( rc ) {
 			return -1;
 		}
 	}
@@ -6855,8 +6869,10 @@ config_back_db_open( BackendDB *be, ConfigReply *cr )
 			return -1;
 		}
 		ce = e->e_private;
-		if ( be->be_cf_ocs && be->be_cf_ocs->co_cfadd )
+		if ( be->be_cf_ocs && be->be_cf_ocs->co_cfadd ) {
+			rs_reinit( &rs, REP_RESULT );
 			be->be_cf_ocs->co_cfadd( op, &rs, e, &c );
+		}
 		/* Iterate through overlays */
 		if ( oi ) {
 			slap_overinst *on;
@@ -6895,8 +6911,10 @@ config_back_db_open( BackendDB *be, ConfigReply *cr )
 				if ( !oe ) {
 					return -1;
 				}
-				if ( c.bi->bi_cf_ocs && c.bi->bi_cf_ocs->co_cfadd )
+				if ( c.bi->bi_cf_ocs && c.bi->bi_cf_ocs->co_cfadd ) {
+					rs_reinit( &rs, REP_RESULT );
 					c.bi->bi_cf_ocs->co_cfadd( op, &rs, oe, &c );
+				}
 			}
 		}
 	}

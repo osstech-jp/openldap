@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2010 The OpenLDAP Foundation.
+ * Copyright 1999-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -244,10 +244,12 @@ fe_extended( Operation *op, SlapReply *rs )
 
 		if ( rs->sr_rspoid != NULL ) {
 			free( (char *)rs->sr_rspoid );
+			rs->sr_rspoid = NULL;
 		}
 
 		if ( rs->sr_rspdata != NULL ) {
 			ber_bvfree( rs->sr_rspdata );
+			rs->sr_rspdata = NULL;
 		}
 	} /* end of OpenLDAP extended operation */
 

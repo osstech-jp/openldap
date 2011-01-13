@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2010 The OpenLDAP Foundation.
+ * Copyright 2003-2011 The OpenLDAP Foundation.
  * Portions Copyright 2003 Pierangelo Masarati.
  * All rights reserved.
  *
@@ -172,9 +172,9 @@ rwm_op_cleanup( Operation *op, SlapReply *rs )
 }
 
 static rwm_op_cb *
-rwm_callback_get( Operation *op, SlapReply *rs )
+rwm_callback_get( Operation *op )
 {
-	rwm_op_cb	*roc = NULL;
+	rwm_op_cb	*roc;
 
 	roc = op->o_tmpalloc( sizeof( struct rwm_op_cb ), op->o_tmpmemctx );
 	roc->cb.sc_cleanup = rwm_op_cleanup;
@@ -184,9 +184,12 @@ rwm_callback_get( Operation *op, SlapReply *rs )
 	roc->ros.r_tag = op->o_tag;
 	roc->ros.ro_dn = op->o_req_dn;
 	roc->ros.ro_ndn = op->o_req_ndn;
-	roc->ros.o_request = op->o_request;
 	BER_BVZERO( &roc->ros.r_dn );
 	BER_BVZERO( &roc->ros.r_ndn );
+	BER_BVZERO( &roc->ros.rx_dn );
+	BER_BVZERO( &roc->ros.rx_ndn );
+	roc->ros.mapped_attrs = NULL;
+	roc->ros.o_request = op->o_request;
 
 	return roc;
 }
@@ -267,7 +270,7 @@ rwm_op_add( Operation *op, SlapReply *rs )
 	char			*olddn = op->o_req_dn.bv_val;
 	int			isupdate;
 
-	rwm_op_cb		*roc = rwm_callback_get( op, rs );
+	rwm_op_cb		*roc = rwm_callback_get( op );
 
 	rc = rwm_op_dn_massage( op, rs, "addDN", &roc->ros );
 	if ( rc != LDAP_SUCCESS ) {
@@ -410,7 +413,7 @@ rwm_op_bind( Operation *op, SlapReply *rs )
 	slap_overinst		*on = (slap_overinst *) op->o_bd->bd_info;
 	int			rc;
 
-	rwm_op_cb		*roc = rwm_callback_get( op, rs );
+	rwm_op_cb		*roc = rwm_callback_get( op );
 
 	rc = rwm_op_dn_massage( op, rs, "bindDN", &roc->ros );
 	if ( rc != LDAP_SUCCESS ) {
@@ -446,7 +449,7 @@ rwm_op_compare( Operation *op, SlapReply *rs )
 	int			rc;
 	struct berval		mapped_vals[2] = { BER_BVNULL, BER_BVNULL };
 
-	rwm_op_cb		*roc = rwm_callback_get( op, rs );
+	rwm_op_cb		*roc = rwm_callback_get( op );
 
 	rc = rwm_op_dn_massage( op, rs, "compareDN", &roc->ros );
 	if ( rc != LDAP_SUCCESS ) {
@@ -531,7 +534,7 @@ rwm_op_delete( Operation *op, SlapReply *rs )
 	slap_overinst		*on = (slap_overinst *) op->o_bd->bd_info;
 	int			rc;
 
-	rwm_op_cb		*roc = rwm_callback_get( op, rs );
+	rwm_op_cb		*roc = rwm_callback_get( op );
 
 	rc = rwm_op_dn_massage( op, rs, "deleteDN", &roc->ros );
 	if ( rc != LDAP_SUCCESS ) {
@@ -556,7 +559,7 @@ rwm_op_modify( Operation *op, SlapReply *rs )
 	Modifications		**mlp;
 	int			rc;
 
-	rwm_op_cb		*roc = rwm_callback_get( op, rs );
+	rwm_op_cb		*roc = rwm_callback_get( op );
 
 	rc = rwm_op_dn_massage( op, rs, "modifyDN", &roc->ros );
 	if ( rc != LDAP_SUCCESS ) {
@@ -719,7 +722,7 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 	int			rc;
 	dncookie		dc;
 
-	rwm_op_cb		*roc = rwm_callback_get( op, rs );
+	rwm_op_cb		*roc = rwm_callback_get( op );
 
 	if ( op->orr_newSup ) {
 		struct berval	nnewSup = BER_BVNULL;
@@ -863,12 +866,7 @@ rwm_entry_get_rw( Operation *op, struct berval *ndn,
 	ObjectClass *oc, AttributeDescription *at, int rw, Entry **ep )
 {
 	slap_overinst		*on = (slap_overinst *) op->o_bd->bd_info;
-	struct ldaprwmap	*rwmap = 
-			(struct ldaprwmap *)on->on_bi.bi_private;
-
 	int			rc;
-	dncookie		dc;
-
 	BackendDB		db;
 	Operation		op2;
 	SlapReply		rs = { REP_SEARCH };
@@ -913,9 +911,16 @@ rwm_entry_get_rw( Operation *op, struct berval *ndn,
 		/* duplicate & release */
 		op2.o_bd->bd_info = (BackendInfo *)on;
 		rc = rwm_send_entry( &op2, &rs );
+		RS_ASSERT( rs.sr_flags & REP_ENTRY_MUSTFLUSH );
 		if ( rc == SLAP_CB_CONTINUE ) {
 			*ep = rs.sr_entry;
 			rc = LDAP_SUCCESS;
+		} else {
+			assert( rc != LDAP_SUCCESS && rs.sr_entry == *ep );
+			*ep = NULL;
+			op2.o_bd->bd_info = (BackendInfo *)on->on_info;
+			be_entry_release_r( &op2, rs.sr_entry );
+			op2.o_bd->bd_info = (BackendInfo *)on;
 		}
 	}
 
@@ -943,7 +948,7 @@ rwm_op_search( Operation *op, SlapReply *rs )
 
 	char			*text = NULL;
 
-	rwm_op_cb		*roc = rwm_callback_get( op, rs );
+	rwm_op_cb		*roc = rwm_callback_get( op );
 
 	rc = rewrite_session_var_set( rwmap->rwm_rw, op->o_conn,
 		"searchFilter", op->ors_filterstr.bv_val );
@@ -1062,7 +1067,7 @@ rwm_exop_passwd( Operation *op, SlapReply *rs )
 		ber_dupbv_x( &op->o_req_ndn, &op->o_ndn, op->o_tmpmemctx );
 	}
 
-	roc = rwm_callback_get( op, rs );
+	roc = rwm_callback_get( op );
 
 	rc = rwm_op_dn_massage( op, rs, "extendedDN", &roc->ros );
 	if ( rc != LDAP_SUCCESS ) {
@@ -1134,7 +1139,7 @@ rwm_extended( Operation *op, SlapReply *rs )
 		}
 	}
 
-	roc = rwm_callback_get( op, rs );
+	roc = rwm_callback_get( op );
 
 	rc = rwm_op_dn_massage( op, rs, "extendedDN", &roc->ros );
 	if ( rc != LDAP_SUCCESS ) {
@@ -1458,6 +1463,7 @@ cleanup_attr:;
 	return 0;
 }
 
+/* Should return SLAP_CB_CONTINUE or failure, never LDAP_SUCCESS. */
 static int
 rwm_send_entry( Operation *op, SlapReply *rs )
 {
@@ -1466,7 +1472,6 @@ rwm_send_entry( Operation *op, SlapReply *rs )
 			(struct ldaprwmap *)on->on_bi.bi_private;
 
 	Entry			*e = NULL;
-	slap_mask_t		flags;
 	struct berval		dn = BER_BVNULL,
 				ndn = BER_BVNULL;
 	dncookie		dc;
@@ -1483,7 +1488,6 @@ rwm_send_entry( Operation *op, SlapReply *rs )
 	dc.ctx = "searchEntryDN";
 
 	e = rs->sr_entry;
-	flags = rs->sr_flags;
 	if ( !( rs->sr_flags & REP_ENTRY_MODIFIABLE ) ) {
 		/* FIXME: all we need to duplicate are:
 		 * - dn
@@ -1491,15 +1495,17 @@ rwm_send_entry( Operation *op, SlapReply *rs )
 		 * - attributes that are requested
 		 * - no values if attrsonly is set
 		 */
-
 		e = entry_dup( e );
 		if ( e == NULL ) {
 			rc = LDAP_NO_MEMORY;
 			goto fail;
 		}
-
-		flags &= ~REP_ENTRY_MUSTRELEASE;
-		flags |= ( REP_ENTRY_MODIFIABLE | REP_ENTRY_MUSTBEFREED );
+	} else if ( rs->sr_flags & REP_ENTRY_MUSTRELEASE ) {
+		/* ITS#6423: REP_ENTRY_MUSTRELEASE incompatible
+		 * with REP_ENTRY_MODIFIABLE */
+		RS_ASSERT( 0 );
+		rc = 1;
+		goto fail;
 	}
 
 	/*
@@ -1531,21 +1537,20 @@ rwm_send_entry( Operation *op, SlapReply *rs )
 	 * to return, and remap them accordingly */
 	(void)rwm_attrs( op, rs, &e->e_attrs, 1 );
 
-	if ( rs->sr_flags & REP_ENTRY_MUSTRELEASE ) {
-		/* ITS#6423: REP_ENTRY_MUSTRELEASE incompatible
-		 * with REP_ENTRY_MODIFIABLE */
-		if ( rs->sr_entry == e ) {
-			rc = 1;
-			goto fail;
+	if ( e != rs->sr_entry ) {
+		/* Reimplementing rs_replace_entry(), I suppose to
+		 * bypass our own dubious rwm_entry_release_rw() */
+		if ( rs->sr_flags & REP_ENTRY_MUSTRELEASE ) {
+			rs->sr_flags ^= REP_ENTRY_MUSTRELEASE;
+			op->o_bd->bd_info = (BackendInfo *)on->on_info;
+			be_entry_release_r( op, rs->sr_entry );
+			op->o_bd->bd_info = (BackendInfo *)on;
+		} else if ( rs->sr_flags & REP_ENTRY_MUSTBEFREED ) {
+			entry_free( rs->sr_entry );
 		}
-
-		op->o_bd->bd_info = (BackendInfo *)on->on_info;
-		be_entry_release_r( op, rs->sr_entry );
-		op->o_bd->bd_info = (BackendInfo *)on;
+		rs->sr_entry = e;
+		rs->sr_flags |= REP_ENTRY_MODIFIABLE | REP_ENTRY_MUSTBEFREED;
 	}
-
-	rs->sr_entry = e;
-	rs->sr_flags = flags;
 
 	return SLAP_CB_CONTINUE;
 
@@ -2033,6 +2038,7 @@ rwm_bva_rewrite_add(
 	return rwm_bva_add( &rwmap->rwm_bva_rewrite, idx, argv );
 }
 
+#ifdef unused
 static int
 rwm_bva_map_add(
 	struct ldaprwmap	*rwmap,
@@ -2041,6 +2047,7 @@ rwm_bva_map_add(
 {
 	return rwm_bva_add( &rwmap->rwm_bva_map, idx, argv );
 }
+#endif /* unused */
 
 static int
 rwm_info_init( struct rewrite_info ** rwm_rw )

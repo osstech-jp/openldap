@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2010 The OpenLDAP Foundation.
+ * Copyright 2003-2011 The OpenLDAP Foundation.
  * Portions Copyright 2003 by IBM Corporation.
  * Portions Copyright 2003-2008 by Howard Chu, Symas Corporation.
  * All rights reserved.
@@ -466,7 +466,7 @@ check_syncprov(
 	AttributeName at[2];
 	Attribute a = {0};
 	Entry e = {0};
-	SlapReply rs = {0};
+	SlapReply rs = {REP_SEARCH};
 	int i, j, changed = 0;
 
 	/* Look for contextCSN from syncprov overlay. If
@@ -756,38 +756,25 @@ do_syncrep2(
 	Operation *op,
 	syncinfo_t *si )
 {
-	LDAPControl	**rctrls = NULL;
-
 	BerElementBuffer berbuf;
 	BerElement	*ber = (BerElement *)&berbuf;
 
 	LDAPMessage	*msg = NULL;
 
-	char		*retoid = NULL;
-	struct berval	*retdata = NULL;
-
-	Entry		*entry = NULL;
-
-	int		syncstate;
-	struct berval	syncUUID = BER_BVNULL;
 	struct sync_cookie	syncCookie = { NULL };
 	struct sync_cookie	syncCookie_req = { NULL };
-	struct berval		cookie = BER_BVNULL;
 
 	int		rc,
 			err = LDAP_SUCCESS;
-	ber_len_t	len;
 
 	Modifications	*modlist = NULL;
 
-	int				match, m, punlock = -1;
+	int				m;
 
 	struct timeval *tout_p = NULL;
 	struct timeval tout = { 0, 0 };
 
 	int		refreshDeletes = 0;
-	BerVarray syncUUIDs = NULL;
-	ber_tag_t si_tag;
 
 	if ( slapd_shutdown ) {
 		rc = -2;
@@ -810,7 +797,14 @@ do_syncrep2(
 	while ( ( rc = ldap_result( si->si_ld, si->si_msgid, LDAP_MSG_ONE,
 		tout_p, &msg ) ) > 0 )
 	{
-		LDAPControl	*rctrlp = NULL;
+		int				match, punlock, syncstate;
+		struct berval	*retdata, syncUUID, cookie = BER_BVNULL;
+		char			*retoid;
+		LDAPControl		**rctrls = NULL, *rctrlp = NULL;
+		BerVarray		syncUUIDs;
+		ber_len_t		len;
+		ber_tag_t		si_tag;
+		Entry			*entry;
 
 		if ( slapd_shutdown ) {
 			rc = -2;
@@ -848,7 +842,14 @@ do_syncrep2(
 				goto done;
 			}
 			ber_init2( ber, &rctrlp->ldctl_value, LBER_USE_DER );
-			ber_scanf( ber, "{em" /*"}"*/, &syncstate, &syncUUID );
+			if ( ber_scanf( ber, "{em" /*"}"*/, &syncstate, &syncUUID )
+					== LBER_ERROR ) {
+				Debug( LDAP_DEBUG_ANY, "do_syncrep2: %s malformed message",
+					si->si_ridtxt, 0, 0 );
+				ldap_controls_free( rctrls );
+				rc = -1;
+				goto done;
+			}
 			/* FIXME: what if syncUUID is NULL or empty?
 			 * (happens with back-sql...) */
 			if ( BER_BVISEMPTY( &syncUUID ) ) {
@@ -860,6 +861,7 @@ do_syncrep2(
 				rc = -1;
 				goto done;
 			}
+			punlock = -1;
 			if ( ber_peek_tag( ber, &len ) == LDAP_TAG_SYNC_COOKIE ) {
 				ber_scanf( ber, /*"{"*/ "m}", &cookie );
 
@@ -920,6 +922,7 @@ do_syncrep2(
 							si->si_cookieState->cs_psids = ch_realloc( si->si_cookieState->cs_psids, si->si_cookieState->cs_pnum * sizeof(int));
 							si->si_cookieState->cs_psids[i] = sid;
 						}
+						assert( punlock < 0 );
 						punlock = i;
 					}
 					op->o_controls[slap_cids.sc_LDAPsync] = &syncCookie;
@@ -988,6 +991,7 @@ do_syncrep2(
 			Debug( LDAP_DEBUG_SYNC,
 				"do_syncrep2: %s LDAP_RES_SEARCH_RESULT\n",
 				si->si_ridtxt, 0, 0 );
+			err = LDAP_OTHER; /* FIXME check parse result properly */
 			ldap_parse_result( si->si_ld, msg, &err, NULL, NULL, NULL,
 				&rctrls, 0 );
 #ifdef LDAP_X_SYNC_REFRESH_REQUIRED
@@ -1098,9 +1102,10 @@ do_syncrep2(
 				rc = -2;
 			}
 			goto done;
-			break;
 
 		case LDAP_RES_INTERMEDIATE:
+			retoid = NULL;
+			retdata = NULL;
 			rc = ldap_parse_intermediate( si->si_ld, msg,
 				&retoid, &retdata, NULL, 0 );
 			if ( !rc && !strcmp( retoid, LDAP_SYNC_INFO ) ) {
@@ -1203,6 +1208,7 @@ do_syncrep2(
 					{
 						ber_scanf( ber, "b", &refreshDeletes );
 					}
+					syncUUIDs = NULL;
 					ber_scanf( ber, "[W]", &syncUUIDs );
 					ber_scanf( ber, /*"{"*/ "}" );
 					if ( refreshDeletes ) {
@@ -1257,7 +1263,6 @@ do_syncrep2(
 
 				ldap_memfree( retoid );
 				ber_bvfree( retdata );
-				break;
 
 			} else {
 				Debug( LDAP_DEBUG_ANY, "do_syncrep2: %s "
@@ -1265,7 +1270,6 @@ do_syncrep2(
 					si->si_ridtxt, rc, 0 );
 				ldap_memfree( retoid );
 				ber_bvfree( retdata );
-				break;
 			}
 			break;
 
@@ -1292,6 +1296,7 @@ do_syncrep2(
 	}
 
 	if ( rc == -1 ) {
+		rc = LDAP_OTHER;
 		ldap_get_option( si->si_ld, LDAP_OPT_ERROR_NUMBER, &rc );
 		err = rc;
 	}
@@ -2234,9 +2239,6 @@ syncrepl_entry(
 	struct berval	syncUUID_strrep = BER_BVNULL;
 
 	SlapReply	rs_search = {REP_RESULT};
-	SlapReply	rs_delete = {REP_RESULT};
-	SlapReply	rs_add = {REP_RESULT};
-	SlapReply	rs_modify = {REP_RESULT};
 	Filter f = {0};
 	AttributeAssertion ava = ATTRIBUTEASSERTION_INIT;
 	int rc = LDAP_SUCCESS;
@@ -2383,6 +2385,7 @@ syncrepl_entry(
 		}
 retry_add:;
 		if ( BER_BVISNULL( &dni.dn ) ) {
+			SlapReply	rs_add = {REP_RESULT};
 
 			op->o_req_dn = entry->e_name;
 			op->o_req_ndn = entry->e_nname;
@@ -2420,7 +2423,7 @@ retry_add:;
 			case LDAP_ALREADY_EXISTS:
 				if ( retry ) {
 					Operation	op2 = *op;
-					SlapReply	rs2 = { 0 };
+					SlapReply	rs2 = { REP_RESULT };
 					slap_callback	cb2 = { 0 };
 
 					op2.o_bd = be;
@@ -2470,6 +2473,7 @@ retry_add:;
 			struct berval noldp, newp;
 			Modifications *mod, **modtail, **ml, *m2;
 			int i, got_replace = 0, just_rename = 0;
+			SlapReply rs_modify = {REP_RESULT};
 
 			op->o_tag = LDAP_REQ_MODRDN;
 			dnRdn( &entry->e_name, &op->orr_newrdn );
@@ -2647,6 +2651,7 @@ retry_add:;
 			}
 			op->o_bd = si->si_wbe;
 retry_modrdn:;
+			rs_reinit( &rs_modify, REP_RESULT );
 			rc = op->o_bd->be_modrdn( op, &rs_modify );
 
 			/* NOTE: noSuchObject should result because the new superior
@@ -2677,6 +2682,8 @@ retry_modrdn:;
 				slap_queue_csn( op, syncCSN );
 		}
 		if ( dni.mods ) {
+			SlapReply rs_modify = {REP_RESULT};
+
 			op->o_tag = LDAP_REQ_MODIFY;
 			op->orm_modlist = dni.mods;
 			op->orm_no_opattrs = 1;
@@ -2707,6 +2714,7 @@ retry_modrdn:;
 		goto done;
 	case LDAP_SYNC_DELETE :
 		if ( !BER_BVISNULL( &dni.dn ) ) {
+			SlapReply	rs_delete = {REP_RESULT};
 			op->o_req_dn = dni.dn;
 			op->o_req_ndn = dni.ndn;
 			op->o_tag = LDAP_REQ_DELETE;
@@ -2726,6 +2734,7 @@ retry_modrdn:;
 					op->o_req_dn = pdn;
 					op->o_req_ndn = pdn;
 					op->o_callback = &cb;
+					rs_reinit( &rs_delete, REP_RESULT );
 					op->o_bd->be_delete( op, &rs_delete );
 				} else {
 					break;
@@ -2784,9 +2793,6 @@ syncrepl_del_nonpresent(
 {
 	Backend* be = op->o_bd;
 	slap_callback	cb = { NULL };
-	SlapReply	rs_search = {REP_RESULT};
-	SlapReply	rs_delete = {REP_RESULT};
-	SlapReply	rs_modify = {REP_RESULT};
 	struct nonpresent_entry *np_list, *np_prev;
 	int rc;
 	AttributeName	an[2];
@@ -2833,6 +2839,8 @@ syncrepl_del_nonpresent(
 		si->si_refreshDelete |= NP_DELETE_ONE;
 
 		for (i=0; uuids[i].bv_val; i++) {
+			SlapReply rs_search = {REP_RESULT};
+
 			op->ors_slimit = 1;
 			uf.f_av_value = uuids[i];
 			filter2bv_x( op, op->ors_filter, &op->ors_filterstr );
@@ -2844,6 +2852,7 @@ syncrepl_del_nonpresent(
 		Filter *cf, *of;
 		Filter mmf[2];
 		AttributeAssertion mmaa;
+		SlapReply rs_search = {REP_RESULT};
 
 		memset( &an[0], 0, 2 * sizeof( AttributeName ) );
 		an[0].an_name = slap_schema.si_ad_entryUUID->ad_cname;
@@ -2913,6 +2922,8 @@ syncrepl_del_nonpresent(
 
 		np_list = LDAP_LIST_FIRST( &si->si_nonpresentlist );
 		while ( np_list != NULL ) {
+			SlapReply rs_delete = {REP_RESULT};
+
 			LDAP_LIST_REMOVE( np_list, npe_link );
 			np_prev = np_list;
 			np_list = LDAP_LIST_NEXT( np_list, npe_link );
@@ -2928,6 +2939,7 @@ syncrepl_del_nonpresent(
 				si->si_ridtxt, op->o_req_dn.bv_val, rc );
 
 			if ( rs_delete.sr_err == LDAP_NOT_ALLOWED_ON_NONLEAF ) {
+				SlapReply rs_modify = {REP_RESULT};
 				Modifications mod1, mod2;
 				mod1.sml_op = LDAP_MOD_REPLACE;
 				mod1.sml_flags = 0;
@@ -2964,6 +2976,7 @@ syncrepl_del_nonpresent(
 					op->o_req_dn = pdn;
 					op->o_req_ndn = pdn;
 					op->o_callback = &cb;
+					rs_reinit( &rs_delete, REP_RESULT );
 					/* give it a root privil ? */
 					op->o_bd->be_delete( op, &rs_delete );
 				} else {
@@ -3006,7 +3019,6 @@ syncrepl_add_glue_ancestors(
 	struct berval dn = BER_BVNULL;
 	struct berval ndn = BER_BVNULL;
 	Entry	*glue;
-	SlapReply	rs_add = {REP_RESULT};
 	struct berval	ptr, nptr;
 	char		*comma;
 
@@ -3064,6 +3076,8 @@ syncrepl_add_glue_ancestors(
 	}
 
 	while ( ndn.bv_val > e->e_nname.bv_val ) {
+		SlapReply	rs_add = {REP_RESULT};
+
 		glue = entry_alloc();
 		ber_dupbv( &glue->e_name, &dn );
 		ber_dupbv( &glue->e_nname, &ndn );
@@ -3281,6 +3295,7 @@ syncrepl_updateCookie(
 		char txtbuf[SLAP_TEXT_BUFLEN];
 		size_t textlen = sizeof txtbuf;
 		Entry *e = slap_create_context_csn_entry( op->o_bd, NULL );
+		rs_reinit( &rs_modify, REP_RESULT );
 		rc = slap_mods2entry( &mod, &e, 0, 1, &text, txtbuf, textlen);
 		op->ora_e = e;
 		rc = op->o_bd->be_add( op, &rs_modify );
@@ -3582,7 +3597,6 @@ dn_callback(
 			 * in the provider are always propagated.
 			 */
 			if ( dni->new_entry ) {
-				Modifications **modtail, **ml;
 				Attribute *old, *new;
 				struct berval old_rdn, new_rdn;
 				struct berval old_p, new_p;
@@ -4054,6 +4068,7 @@ config_suffixm( ConfigArgs *c, syncinfo_t *si )
 
 	rc = rewrite_parse( si->si_rewrite, c->fname, c->lineno, 4, argvRule );
 	ch_free( vnc );
+	ch_free( rnc );
 	return rc;
 }
 #endif

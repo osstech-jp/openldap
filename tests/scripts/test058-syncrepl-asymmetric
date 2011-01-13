@@ -2,7 +2,7 @@
 # $OpenLDAP$
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
-## Copyright 1998-2010 The OpenLDAP Foundation.
+## Copyright 1998-2011 The OpenLDAP Foundation.
 ## All rights reserved.
 ##
 ## Redistribution and use in source and binary forms, with or without
@@ -373,7 +373,7 @@ EOF
 dn: cn=module,cn=config
 objectClass: olcModuleList
 cn: module
-olcModulePath: ../../../servers/slapd/back-$BACKEND
+olcModulePath: $TESTWD/../servers/slapd/back-$BACKEND
 olcModuleLoad: back_$BACKEND.la
 EOF
 	RC=$?
@@ -390,7 +390,7 @@ if [ "$SYNCPROV" = syncprovmod ]; then
 dn: cn=module,cn=config
 objectClass: olcModuleList
 cn: module
-olcModulePath: ../../../servers/slapd/overlays
+olcModulePath: $TESTWD/../servers/slapd/overlays
 olcModuleLoad: syncprov.la
 
 EOF
@@ -484,7 +484,7 @@ if [ "$SYNCPROV" = syncprovmod ]; then
 dn: cn=module,cn=config
 objectClass: olcModuleList
 cn: module
-olcModulePath: ../../../servers/slapd/overlays
+olcModulePath: $TESTWD/../servers/slapd/overlays
 olcModuleLoad: syncprov.la
 
 EOF
@@ -557,7 +557,7 @@ if [ "$SYNCPROV" = syncprovmod ]; then
 dn: cn=module,cn=config
 objectClass: olcModuleList
 cn: module
-olcModulePath: ../../../servers/slapd/overlays
+olcModulePath: $TESTWD/../servers/slapd/overlays
 olcModuleLoad: syncprov.la
 
 EOF
@@ -2259,7 +2259,7 @@ fi
 
 # TEST:
 # Run race tests when more than one backend is replicated from the same
-# producer.  This will usually fail long before 100 iterations unless
+# provider.  This will usually fail long before 100 iterations unless
 # syncrepl stores the contextCSN in the suffix of its own database, and
 # that syncprov follows these rules before updating its own CSN when it
 # detects updates from syncrepl:

@@ -1,8 +1,8 @@
 /* abandon.c */
-/* $OpenLDAP: pkg/ldap/libraries/libldap/abandon.c,v 1.63 2010/10/22 19:45:48 hyc Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -211,7 +211,7 @@ start_again:;
 			if ( LDAP_IS_UDP(ld) ) {
 				struct sockaddr sa = {0};
 				/* dummy, filled with ldo_peer in request.c */
-				err = ber_write( ber, &sa, sizeof(sa), 0 );
+				err = ber_write( ber, (char *) &sa, sizeof(sa), 0 );
 			}
 			if ( LDAP_IS_UDP(ld) && ld->ld_options.ldo_version ==
 				LDAP_VERSION2 )
@@ -279,7 +279,9 @@ start_again:;
 
 	if ( lr != NULL ) {
 		if ( sendabandon || lr->lr_status == LDAP_REQST_WRITING ) {
+			LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
 			ldap_free_connection( ld, lr->lr_conn, 0, 1 );
+			LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		}
 
 		if ( origid == msgid ) {
@@ -445,4 +447,3 @@ ldap_int_bisect_delete( ber_int_t **vp, ber_len_t *np, int id, int idx )
 
 	return 0;
 }
-

@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@ typedef enum tool_type_t {
 
 	TOOL_WHOAMI	= TOOL_EXOP | 0x100U,
 	TOOL_PASSWD	= TOOL_EXOP | 0x200U,
+	TOOL_VC		= TOOL_EXOP | 0x400U,
 
 	TOOL_WRITE	= (TOOL_ADD|TOOL_DELETE|TOOL_MODIFY|TOOL_MODRDN),
 	TOOL_READ	= (TOOL_SEARCH|TOOL_COMPARE),
@@ -55,6 +56,7 @@ extern int		dont;
 extern int		referrals;
 extern int		verbose;
 extern int		ldif;
+extern ber_len_t	ldif_wrap;
 extern char		*prog;
 
 /* connection */

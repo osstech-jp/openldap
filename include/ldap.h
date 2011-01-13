@@ -1,7 +1,7 @@
-/* $OpenLDAP: pkg/ldap/include/ldap.h,v 1.355 2010/10/22 19:45:48 hyc Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  * 
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -264,6 +264,9 @@ typedef struct ldapcontrol {
 /*	non-standard track controls */
 #define LDAP_CONTROL_PAGEDRESULTS	"1.2.840.113556.1.4.319"   /* RFC 2696 */
 
+#define LDAP_CONTROL_AUTHZID_REQUEST	"2.16.840.1.113730.4.16"   /* RFC 3829 */
+#define LDAP_CONTROL_AUTHZID_RESPONSE   "2.16.840.1.113730.4.15"   /* RFC 3829 */
+
 /* LDAP Content Synchronization Operation -- RFC 4533 */
 #define LDAP_SYNC_OID			"1.3.6.1.4.1.4203.1.9.1"
 #define LDAP_CONTROL_SYNC		LDAP_SYNC_OID ".1"
@@ -384,6 +387,13 @@ typedef struct ldapcontrol {
 #define	LDAP_TAG_EXOP_REFRESH_REQ_DN	((ber_tag_t) 0x80U)
 #define	LDAP_TAG_EXOP_REFRESH_REQ_TTL	((ber_tag_t) 0x81U)
 #define	LDAP_TAG_EXOP_REFRESH_RES_TTL	((ber_tag_t) 0x80U)
+
+#define LDAP_EXOP_VERIFY_CREDENTIALS	"1.3.6.1.4.1.4203.666.6.5"
+#define LDAP_EXOP_X_VERIFY_CREDENTIALS	LDAP_EXOP_VERIFY_CREDENTIALS
+
+#define LDAP_TAG_EXOP_VERIFY_CREDENTIALS_COOKIE	 ((ber_tag_t) 0x80U)
+#define LDAP_TAG_EXOP_VERIFY_CREDENTIALS_SCREDS	 ((ber_tag_t) 0x81U)
+#define LDAP_TAG_EXOP_VERIFY_CREDENTIALS_CONTROLS ((ber_tag_t) 0xa2U) /* context specific + constructed + 2 */
 
 #define LDAP_EXOP_WHO_AM_I		"1.3.6.1.4.1.4203.1.11.3"		/* RFC 4532 */
 #define LDAP_EXOP_X_WHO_AM_I	LDAP_EXOP_WHO_AM_I
@@ -1355,7 +1365,7 @@ ldap_parse_result LDAP_P((
 	LDAPMessage		*res,
 	int				*errcodep,
 	char			**matcheddnp,
-	char			**errmsgp,
+	char			**diagmsgp,
 	char			***referralsp,
 	LDAPControl		***serverctrls,
 	int				freeit ));
@@ -2213,6 +2223,76 @@ ldap_parse_vlvresponse_control LDAP_P((
 	ber_int_t *list_countp,
 	struct berval **contextp,
 	int           *errcodep ));
+
+/*
+ * LDAP Verify Credentials
+ */
+#define LDAP_API_FEATURE_VERIFY_CREDENTIALS 1000
+
+LDAP_F( int )
+ldap_verify_credentials LDAP_P((
+	LDAP		*ld,
+	struct berval	*cookie,
+	LDAP_CONST char	*dn,
+	LDAP_CONST char	*mechanism,
+	struct berval	*cred,
+	LDAPControl	**ctrls,
+	LDAPControl	**serverctrls,
+	LDAPControl	**clientctrls,
+	int		*msgidp ));
+
+LDAP_F( int )
+ldap_verify_credentials_s LDAP_P((
+	LDAP		*ld,
+	struct berval	*cookie,
+	LDAP_CONST char	*dn,
+	LDAP_CONST char	*mechanism,
+	struct berval	*cred,
+	LDAPControl	**vcictrls,
+	LDAPControl	**serverctrls,
+	LDAPControl	**clientctrls,
+	int				*code,
+	char			**diagmsgp,
+	struct berval	**scookie,
+	struct berval	**servercredp,
+	LDAPControl	***vcoctrls));
+	
+
+LDAP_F( int )
+ldap_parse_verify_credentials LDAP_P((
+	LDAP		*ld,
+	LDAPMessage	*res,
+	int			*code,
+	char			**diagmsgp,
+	struct berval	**cookie,
+	struct berval	**servercredp,
+	LDAPControl	***vcctrls));
+
+/* not yet implemented */
+/* #define LDAP_API_FEATURE_VERIFY_CREDENTIALS_INTERACTIVE 1000 */
+#ifdef LDAP_API_FEATURE_VERIFY_CREDENTIALS_INTERACTIVE
+LDAP_F( int )
+ldap_verify_credentials_interactive LDAP_P((
+	LDAP *ld,
+	LDAP_CONST char *dn, /* usually NULL */
+	LDAP_CONST char *saslMechanism,
+	LDAPControl **vcControls,
+	LDAPControl **serverControls,
+	LDAPControl **clientControls,
+
+	/* should be client controls */
+	unsigned flags,
+	LDAP_SASL_INTERACT_PROC *proc,
+	void *defaults,
+	void *context,
+	
+	/* as obtained from ldap_result() */
+	LDAPMessage *result,
+
+	/* returned during bind processing */
+	const char **rmech,
+	int *msgid ));
+#endif
 
 /*
  * LDAP Who Am I?

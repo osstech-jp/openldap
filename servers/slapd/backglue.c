@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2001-2010 The OpenLDAP Foundation.
+ * Copyright 2001-2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -419,9 +419,10 @@ glue_op_search ( Operation *op, SlapReply *rs )
 		if ( op->o_bd == b0 )
 			return SLAP_CB_CONTINUE;
 
-		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 		if (op->o_bd && op->o_bd->be_search) {
 			rs->sr_err = op->o_bd->be_search( op, rs );
+		} else {
+			rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 		}
 		return rs->sr_err;
 

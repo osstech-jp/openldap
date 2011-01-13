@@ -1,8 +1,8 @@
 /* ldappasswd -- a tool for change LDAP passwords */
-/* $OpenLDAP: pkg/ldap/clients/tools/ldappasswd.c,v 1.151 2010/10/26 23:00:47 kurt Exp $ */
+/* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2010 The OpenLDAP Foundation.
+ * Copyright 1998-2011 The OpenLDAP Foundation.
  * Portions Copyright 1998-2003 Kurt D. Zeilenga.
  * Portions Copyright 1998-2001 Net Boolean Incorporated.
  * Portions Copyright 2001-2003 IBM Corporation.
