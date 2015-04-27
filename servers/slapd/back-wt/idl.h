@@ -14,9 +14,9 @@
  * <http://www.OpenLDAP.org/license.html>.
  */
 /* ACKNOWLEDGEMENTS:
- * This work was originally developed by
- * HAMANO Tsukasa <hamano@osstech.co.jp>
- * for inclusion in OpenLDAP Software.
+ * This work was developed by HAMANO Tsukasa <hamano@osstech.co.jp>
+ * based on back-bdb for inclusion in OpenLDAP Software.
+ * This work was sponsored by WiredTiger, Inc.
  */
 
 #ifndef _WI_IDL_H_
