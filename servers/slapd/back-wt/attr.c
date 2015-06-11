@@ -16,7 +16,7 @@
 /* ACKNOWLEDGEMENTS:
  * This work was developed by HAMANO Tsukasa <hamano@osstech.co.jp>
  * based on back-bdb for inclusion in OpenLDAP Software.
- * This work was sponsored by WiredTiger, Inc.
+ * WiredTiger is a product of MongoDB Inc.
  */
 
 #include "back-wt.h"
