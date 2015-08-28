@@ -168,7 +168,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	session->close(session, NULL);
 	wi->wi_conn = conn;
 	wi->wi_flags |= WT_IS_OPEN;
-	
+
     return LDAP_SUCCESS;
 }
 

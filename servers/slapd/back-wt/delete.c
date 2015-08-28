@@ -48,7 +48,7 @@ wt_delete( Operation *op, SlapReply *rs )
 
 	int parent_is_glue = 0;
 	int parent_is_leaf = 0;
-	
+
 	Debug( LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(wt_delete) ": %s\n",
 		   op->o_req_dn.bv_val, 0, 0 );
 

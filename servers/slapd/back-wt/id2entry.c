@@ -141,6 +141,10 @@ int wt_id2entry( BackendDB *be,
 	cursor->set_key(cursor, id);
 	rc = cursor->search(cursor);
 	if ( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   LDAP_XSTRING(wt_id2entry)
+			   ": search failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
 

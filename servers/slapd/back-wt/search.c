@@ -342,7 +342,7 @@ wt_search( Operation *op, SlapReply *rs )
 	Entry *base = NULL;
 	slap_mask_t mask;
 	time_t stoptime;
-	
+
 	ID candidates[WT_IDL_UM_SIZE];
 	ID iscopes[WT_IDL_DB_SIZE];
 	ID scopes[WT_IDL_DB_SIZE];

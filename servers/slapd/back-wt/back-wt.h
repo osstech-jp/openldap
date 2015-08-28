@@ -44,9 +44,9 @@ struct wt_info {
 	struct wt_attrinfo **wi_attrs;
 	void *wi_search_stack;
 	int wi_search_stack_depth;
-	
+
 	struct re_s *wi_index_task;
-	
+
 	int wi_flags;
 #define WT_IS_OPEN      0x01
 #define WT_OPEN_INDEX   0x02

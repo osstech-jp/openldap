@@ -273,7 +273,7 @@ fail:
 		}
 
 		Debug( LDAP_DEBUG_CONFIG, "index %s 0x%04lx\n",
-			ad->ad_cname.bv_val, mask, 0 ); 
+			ad->ad_cname.bv_val, mask, 0 );
 
 		a = (AttrInfo *) ch_malloc( sizeof(AttrInfo) );
 
@@ -323,7 +323,7 @@ fail:
 			if ( wi->wi_flags & WT_IS_OPEN ) {
 				AttrInfo *b = wt_attr_mask( wi, ad );
 				/* If there is already an index defined for this attribute
-				 * it must be replaced. Otherwise we end up with multiple 
+				 * it must be replaced. Otherwise we end up with multiple
 				 * olcIndex values for the same attribute */
 				if ( b->ai_indexmask & WT_INDEX_DELETING ) {
 					/* If we were editing this attr, reset it */

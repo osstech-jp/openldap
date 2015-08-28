@@ -107,7 +107,7 @@ unsigned wt_idl_search( ID *ids, ID id )
 			return cursor;
 		}
 	}
-	
+
 	if( val > 0 ) {
 		++cursor;
 	}
@@ -176,7 +176,7 @@ int wt_idl_insert( ID *ids, ID id )
 			ids[2] = ids[ids[0]-1];
 		}
 		ids[0] = NOID;
-	
+
 	} else {
 		/* insert id */
 		AC_MEMCPY( &ids[x+1], &ids[x], (ids[0]-x) * sizeof(ID) );
@@ -688,7 +688,7 @@ wt_idl_sort( ID *ids, ID *tmp )
 #else
 
 /* 8 bit Radix sort + insertion sort
- * 
+ *
  * based on code from http://www.cubic.org/docs/radix.htm
  * with improvements by ebackes@symas.com and hyc@symas.com
  *
@@ -708,8 +708,8 @@ wt_idl_sort( ID *ids, ID *tmp )
 	ID *idls[2];
 	unsigned char *maxv = (unsigned char *)&ids[size];
 
- 	if ( WT_IDL_IS_RANGE( ids ))
- 		return;
+	if ( WT_IDL_IS_RANGE( ids ))
+		return;
 
 	/* Use insertion sort for small lists */
 	if ( size <= SMALL ) {
@@ -786,7 +786,7 @@ wt_idl_sort( ID *ids, ID *tmp )
 	/* copy back from temp if needed */
 	if ( phase ) {
 		ids++; tmp++;
-		for ( count = 0; count < size; ++count ) 
+		for ( count = 0; count < size; ++count )
 			*ids++ = *tmp++;
 	}
 }
