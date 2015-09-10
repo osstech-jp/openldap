@@ -578,6 +578,7 @@ wt_modify( Operation *op, SlapReply *rs )
 			   rs->sr_err, 0, 0 );
 		/* Only free attrs if they were dup'd.  */
 		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
+		wc->session->rollback_transaction(wc->session, NULL);
 		goto return_results;
 	}
 
@@ -593,6 +594,7 @@ wt_modify( Operation *op, SlapReply *rs )
 			rs->sr_err = LDAP_OTHER;
 			rs->sr_text = "entry update failed";
 		}
+		wc->session->rollback_transaction(wc->session, NULL);
 		goto return_results;
 	}
 
