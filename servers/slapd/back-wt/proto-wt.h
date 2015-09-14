@@ -159,9 +159,10 @@ extern BI_op_add            wt_add;
 extern BI_op_bind           wt_bind;
 extern BI_op_compare        wt_compare;
 extern BI_op_delete         wt_delete;
-extern BI_op_delete         wt_modify;
-
+extern BI_op_modify         wt_modify;
+extern BI_op_modrdn         wt_modrdn;
 extern BI_op_search         wt_search;
+extern BI_op_extended       wt_extended;
 
 extern BI_operational       wt_operational;
 

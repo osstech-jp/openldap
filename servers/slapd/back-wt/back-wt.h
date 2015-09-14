@@ -70,6 +70,7 @@ struct wt_info {
 
 typedef struct {
 	WT_SESSION *session;
+	int is_begin_transaction;
 } wt_ctx;
 
 /* for the cache of attribute information (which are indexed, etc.) */
