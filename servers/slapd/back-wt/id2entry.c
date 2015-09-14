@@ -210,7 +210,6 @@ int wt_entry_release(
 	Entry *e,
 	int rw )
 {
-	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	return wt_entry_return( e );
 }
 
@@ -225,7 +224,73 @@ int wt_entry_get(
 	int rw,
 	Entry **ent )
 {
-	return 0;
+	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
+	wt_ctx *wc;
+	Entry *e = NULL;
+	int	rc;
+	const char *at_name = at ? at->ad_cname.bv_val : "(null)";
+
+	Debug( LDAP_DEBUG_ARGS, LDAP_XSTRING(wt_entry_get)
+		   ": ndn: \"%s\"\n", ndn->bv_val, 0, 0 );
+	Debug( LDAP_DEBUG_ARGS, LDAP_XSTRING(wt_entry_get)
+		   ": oc: \"%s\", at: \"%s\"\n",
+		   oc ? oc->soc_cname.bv_val : "(null)", at_name, 0);
+
+	wc = wt_ctx_get(op, wi);
+	if( !wc ){
+		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_entry_get)
+			   ": wt_ctx_get failed\n",
+			   0, 0, 0 );
+		return LDAP_OTHER;
+	}
+	rc = wt_dn2entry(op->o_bd, wc, ndn, &e);
+	switch( rc ) {
+	case 0:
+		break;
+	case WT_NOTFOUND:
+		Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
+			   ": cannot find entry: \"%s\"\n",
+			   ndn->bv_val, 0, 0 );
+		return LDAP_NO_SUCH_OBJECT;
+	default:
+		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_entry_get)
+			   ": wt_dn2entry failed rc=%d\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		rc = LDAP_OTHER;
+	}
+
+	Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
+		   ": found entry: \"%s\"\n",
+		   ndn->bv_val, 0, 0 );
+
+	if ( oc && !is_entry_objectclass( e, oc, 0 )) {
+		Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
+			   ": failed to find objectClass %s\n",
+			   oc->soc_cname.bv_val, 0, 0 );
+		rc = LDAP_NO_SUCH_ATTRIBUTE;
+		goto return_results;
+	}
+
+	/* NOTE: attr_find() or attrs_find()? */
+	if ( at && attr_find( e->e_attrs, at ) == NULL ) {
+		Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
+			   ": failed to find attribute %s\n",
+			   at->ad_cname.bv_val, 0, 0 );
+		rc = LDAP_NO_SUCH_ATTRIBUTE;
+		goto return_results;
+	}
+
+return_results:
+	if( rc != LDAP_SUCCESS ) {
+		wt_entry_return( e );
+	}else{
+		*ent = e;
+	}
+
+	Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(wt_entry_get)
+		   ": rc=%d\n", rc, 0, 0 );
+
+	return rc;
 }
 
 /*
