@@ -635,7 +635,13 @@ loop_begin:
 		if ( rs->sr_err == LDAP_COMPARE_TRUE ) {
 			/* check size limit */
 			if ( get_pagedresults(op) > SLAP_CONTROL_IGNORED ) {
-				/* TODO: */
+				if ( rs->sr_nentries >= ((PagedResultsState *)op->o_pagedresults_state)->ps_size ) {
+					wt_entry_return( e );
+					e = NULL;
+					send_paged_response( op, rs, &lastid, tentries );
+					goto done;
+				}
+				lastid = id;
 			}
 
 			if (e) {
@@ -679,8 +685,7 @@ nochange:
 	rs->sr_err = (rs->sr_v2ref == NULL) ? LDAP_SUCCESS : LDAP_REFERRAL;
 	rs->sr_rspoid = NULL;
 	if ( get_pagedresults(op) > SLAP_CONTROL_IGNORED ) {
-		/* not implement yet */
-		/* send_paged_response( op, rs, NULL, 0 ); */
+		send_paged_response( op, rs, NULL, 0 );
 	} else {
 		send_ldap_result( op, rs );
 	}
