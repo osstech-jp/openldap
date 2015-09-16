@@ -42,7 +42,7 @@ wt_hasSubordinates(
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_compare)
+			   LDAP_XSTRING(wt_hasSubordinates)
 			   ": wt_ctx_get failed\n",
 			   0, 0, 0 );
 		return LDAP_OTHER;
