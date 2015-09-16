@@ -269,7 +269,7 @@ wt_back_initialize( BackendInfo *bi )
 	bi->bi_op_delete = wt_delete;
 	bi->bi_op_abandon = 0;
 
-	bi->bi_extended = 0;
+	bi->bi_extended = wt_extended;
 
 	bi->bi_chk_referrals = 0;
 	bi->bi_operational = wt_operational;
