@@ -91,7 +91,19 @@ wt_cf_gen( ConfigArgs *c )
 
 	if(c->op == SLAP_CONFIG_EMIT) {
 		rc = 0;
-		// not implement yet
+		switch( c->type ) {
+		case WT_DIRECTORY:
+			if ( wi->wi_dbenv_home ) {
+				c->value_string = ch_strdup( wi->wi_dbenv_home );
+			} else {
+				rc = 1;
+			}
+			break;
+		case WT_INDEX:
+			wt_attr_index_unparse( wi, &c->rvalue_vals );
+			if ( !c->rvalue_vals ) rc = 1;
+			break;
+		}
 		return rc;
 	}
 
