@@ -85,7 +85,7 @@ wt_key_read(
 		rc = cursor->next(cursor);
 	} while(rc == 0);
 
-	if (rc == WT_NOTFOUND ) {
+	if ( rc == WT_NOTFOUND && exact == 0 ) {
 		rc = LDAP_SUCCESS;
 	}
 
