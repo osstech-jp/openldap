@@ -20,6 +20,7 @@
  */
 
 #include "back-wt.h"
+#include "lutil.h"
 #include "config.h"
 
 /* Find the ad, return -1 if not found,
