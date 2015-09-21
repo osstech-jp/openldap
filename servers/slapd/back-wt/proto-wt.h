@@ -26,6 +26,10 @@ LDAP_BEGIN_DECL
 
 #define WT_UCTYPE  "WT"
 
+/*
+ * attr.c
+ */
+
 AttrInfo *wt_attr_mask( struct wt_info *wi, AttributeDescription *desc );
 void wt_attr_flush( struct wt_info *wi );
 
@@ -51,10 +55,16 @@ unsigned wt_idl_search( ID *ids, ID id );
 ID wt_idl_first( ID *ids, ID *cursor );
 ID wt_idl_next( ID *ids, ID *cursor );
 
-
 /*
  * index.c
  */
+
+extern AttrInfo *
+wt_index_mask LDAP_P((
+	Backend *be,
+	AttributeDescription *desc,
+	struct berval *atname ));
+
 int wt_index_entry LDAP_P(( Operation *op, wt_ctx *wc, int r, Entry *e ));
 
 #define wt_index_entry_add(op,t,e) \
