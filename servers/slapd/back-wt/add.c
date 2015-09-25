@@ -318,7 +318,7 @@ wt_add( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	rc = wt_id2entry_add( op, wc->session, op->ora_e );
+	rc = wt_id2entry_add( op, wc, op->ora_e );
 	if ( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   LDAP_XSTRING(wt_add)

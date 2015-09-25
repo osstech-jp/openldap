@@ -339,7 +339,7 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 		goto done;
 	}
 
-	rc = wt_id2entry_add( &op, wc->session, e );
+	rc = wt_id2entry_add( &op, wc, e );
 	if( rc != 0 ) {
         snprintf( text->bv_val, text->bv_len,
 				  "id2entry_add failed: %s (%d)",

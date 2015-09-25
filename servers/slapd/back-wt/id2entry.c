@@ -24,11 +24,12 @@
 
 static int wt_id2entry_put(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	Entry *e,
 	const char *config )
 {
 	struct berval bv;
+	WT_SESSION *session = wc->session;
 	WT_CURSOR *cursor = NULL;
 	WT_ITEM item;
 	int rc;
@@ -49,6 +50,7 @@ static int wt_id2entry_put(
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
+
 	cursor->set_key(cursor, e->e_id);
 	cursor->set_value(cursor, e->e_ndn, &item);
 	rc = cursor->insert(cursor);
@@ -62,35 +64,39 @@ static int wt_id2entry_put(
 
 done:
 	ch_free( bv.bv_val );
+
 	if(cursor){
 		cursor->close(cursor);
 	}
+
 	return rc;
 }
 
 int wt_id2entry_add(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	Entry *e )
 {
-	return wt_id2entry_put(op, session, e, "overwrite=false");
+	return wt_id2entry_put(op, wc, e, "overwrite=false");
 }
 
 int wt_id2entry_update(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	Entry *e )
 {
-	return wt_id2entry_put(op, session, e, "overwrite=true");
+	return wt_id2entry_put(op, wc, e, "overwrite=true");
 }
 
 int wt_id2entry_delete(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	Entry *e )
 {
 	int rc;
+	WT_SESSION *session = wc->session;
 	WT_CURSOR *cursor = NULL;
+
 	rc = session->open_cursor(session, WT_TABLE_ID2ENTRY, NULL,
 							  NULL, &cursor);
 	if ( rc ) {
@@ -118,24 +124,28 @@ done:
 }
 
 int wt_id2entry( BackendDB *be,
-				 WT_SESSION *session,
+				 wt_ctx *wc,
 				 ID id,
 				 Entry **ep ){
 	int rc;
-	WT_CURSOR *cursor = NULL;
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->id2entry;
 	WT_ITEM item;
 	EntryHeader eh;
 	int eoff;
 	Entry *e = NULL;
 
-	rc = session->open_cursor(session, WT_TABLE_ID2ENTRY"(entry)", NULL,
-							  NULL, &cursor);
-	if ( rc ) {
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry)
-			   ": open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
-		goto done;
+	if(!cursor){
+		rc = session->open_cursor(session, WT_TABLE_ID2ENTRY"(entry)", NULL,
+								  NULL, &cursor);
+		if ( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_id2entry)
+				   ": open_cursor failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			goto done;
+		}
+		wc->id2entry = cursor;
 	}
 
 	cursor->set_key(cursor, id);
@@ -165,9 +175,17 @@ int wt_id2entry( BackendDB *be,
 	*ep = e;
 
 done:
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
 	if(cursor){
 		cursor->close(cursor);
+		wc->id2entry = NULL;
 	}
+#endif
 	return rc;
 }
 

@@ -61,6 +61,7 @@ wt_ctx_free( void *key, void *data )
 		wc->session->close(wc->session, NULL);
 		wc->session = NULL;
 	}
+
 	ch_free(wc);
 }
 

@@ -35,28 +35,31 @@ int wt_dn2entry( BackendDB *be,
 				 struct berval *ndn,
 				 Entry **ep ){
 	uint64_t id;
-	WT_CURSOR *cursor = NULL;
 	WT_ITEM item;
 	EntryHeader eh;
 	int rc;
 	int eoff;
 	Entry *e = NULL;
 	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->dn2entry;
 
 	if( ndn->bv_len == 0 ){
 		/* parent of root dn */
 		return WT_NOTFOUND;
 	}
 
-	rc = session->open_cursor(session,
-							  WT_INDEX_DN"(id, entry)",
-							  NULL, NULL, &cursor);
-	if ( rc ) {
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2entry)
-			   ": open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
-		goto done;
+	if(!cursor){
+		rc = session->open_cursor(session,
+								  WT_INDEX_DN"(id, entry)",
+								  NULL, NULL, &cursor);
+		if ( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_dn2entry)
+				   ": open_cursor failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			goto done;
+		}
+		wc->dn2entry = cursor;
 	}
 
 	cursor->set_key(cursor, ndn->bv_val);
@@ -96,9 +99,17 @@ int wt_dn2entry( BackendDB *be,
 	*ep = e;
 
 done:
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
 	if(cursor){
 		cursor->close(cursor);
+		wc->dn2entry = NULL;
 	}
+#endif
 	return rc;
 }
 
