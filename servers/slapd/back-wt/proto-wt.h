@@ -36,9 +36,10 @@ void wt_attr_flush( struct wt_info *wi );
 /*
  * id2entry.c
  */
-int wt_id2entry_add(Operation *op, WT_SESSION *session, Entry *e );
-int wt_id2entry_update(Operation *op, WT_SESSION *session, Entry *e );
-int wt_id2entry_delete(Operation *op, WT_SESSION *session, Entry *e );
+int wt_id2entry(BackendDB *be, wt_ctx *wc, ID id, Entry **ep );
+int wt_id2entry_add(Operation *op, wt_ctx *wc, Entry *e );
+int wt_id2entry_update(Operation *op, wt_ctx *wc, Entry *e );
+int wt_id2entry_delete(Operation *op, wt_ctx *wc, Entry *e );
 
 BI_entry_release_rw wt_entry_release;
 BI_entry_get_rw wt_entry_get;

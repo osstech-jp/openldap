@@ -313,7 +313,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	}
 
 	/* update entry */
-	rc = wt_id2entry_update( op, wc->session, &dummy );
+	rc = wt_id2entry_update( op, wc, &dummy );
 	if ( rc != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, WT_FUNC
 			   ": id2entry update failed(%d)\n",

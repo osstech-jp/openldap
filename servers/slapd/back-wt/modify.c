@@ -574,7 +574,7 @@ wt_modify( Operation *op, SlapReply *rs )
 	}
 
 	/* change the entry itself */
-	rs->sr_err = wt_id2entry_update( op, wc->session, &dummy );
+	rs->sr_err = wt_id2entry_update( op, wc, &dummy );
 	if ( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, WT_FUNC ": id2entry update failed (%d)\n",
 			   rs->sr_err, 0, 0 );

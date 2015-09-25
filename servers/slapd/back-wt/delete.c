@@ -350,7 +350,7 @@ wt_delete( Operation *op, SlapReply *rs )
 	}
 
 	/* delete from id2entry */
-	rc = wt_id2entry_delete( op, wc->session, e );
+	rc = wt_id2entry_delete( op, wc, e );
 	if ( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   "<== " LDAP_XSTRING(wt_delete)

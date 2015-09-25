@@ -552,7 +552,7 @@ loop_begin:
 
 	fetch_entry_retry:
 
-		rc = wt_id2entry(op->o_bd, wc->session, id, &e);
+		rc = wt_id2entry(op->o_bd, wc, id, &e);
 		/* TODO: error handling */
 		if ( e == NULL ) {
 			/* TODO: */
