@@ -121,22 +121,37 @@ int wt_back_init_cf( BackendInfo *bi );
 int
 wt_dn2id(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
     struct berval *ndn,
     ID *id);
 
 int
 wt_dn2id_add(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	ID pid,
 	Entry *e);
 
 int
+wt_dn2idl(
+	Operation *op,
+	wt_ctx *wc,
+	struct berval *ndn,
+	Entry *e,
+	ID *ids,
+	ID *stack);
+
+int
 wt_dn2id_delete(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	struct berval *ndn);
+
+int
+wt_dn2id_has_children(
+	Operation *op,
+	wt_ctx *wc,
+	ID id );
 
 /*
  * dn2entry.c

@@ -119,7 +119,7 @@ equality_candidates(
 
 	if ( ava->aa_desc == slap_schema.si_ad_entryDN ) {
 		ID id = NOID;
-		rc = wt_dn2id(op, wc->session, &ava->aa_value, &id);
+		rc = wt_dn2id(op, wc, &ava->aa_value, &id);
 		if( rc == 0 ){
 			wt_idl_append_one(ids, id);
 		}else if ( rc == WT_NOTFOUND ) {

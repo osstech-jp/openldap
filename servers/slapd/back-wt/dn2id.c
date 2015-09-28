@@ -57,12 +57,13 @@ mkrevdn(struct berval src){
 int
 wt_dn2id_add(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	ID pid,
 	Entry *e)
 {
 	int rc;
-	WT_CURSOR *cursor = NULL;
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->dn2id_w;
 	char *revdn = NULL;
 
 	Debug( LDAP_DEBUG_TRACE, "=> wt_dn2id_add 0x%lx: \"%s\"\n",
@@ -72,15 +73,18 @@ wt_dn2id_add(
 	/* make reverse dn */
 	revdn = mkrevdn(e->e_nname);
 
-	rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
-							  NULL, &cursor);
-	if(rc){
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id_add)
-			   ": open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
-		goto done;
-    }
+	if(!cursor){
+		rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
+								  NULL, &cursor);
+		if(rc){
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_dn2id_add)
+				   ": open_cursor failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			goto done;
+		}
+		wc->dn2id_w = cursor;
+	}
 	cursor->set_key(cursor, e->e_ndn);
 	cursor->set_value(cursor, e->e_id, pid, revdn);
 	rc = cursor->insert(cursor);
@@ -96,9 +100,18 @@ done:
 	if(revdn){
 		ch_free(revdn);
 	}
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
 	if(cursor){
 		cursor->close(cursor);
+		wc->dn2id_w = NULL;
 	}
+#endif
+
 	Debug( LDAP_DEBUG_TRACE, "<= wt_dn2id_add 0x%lx: %d\n", e->e_id, rc, 0 );
 	return rc;
 }
@@ -106,22 +119,26 @@ done:
 int
 wt_dn2id_delete(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	struct berval *ndn)
 {
 	int rc = 0;
-	WT_CURSOR *cursor = NULL;
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->dn2id_w;
 
 	Debug( LDAP_DEBUG_TRACE, "=> wt_dn2id_delete %s\n", ndn->bv_val, 0, 0 );
 
-	rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
-							  NULL, &cursor);
-	if ( rc ) {
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id_delete)
-			   ": open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
-		goto done;
+	if(!cursor){
+		rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
+								  NULL, &cursor);
+		if ( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_dn2id_delete)
+				   ": open_cursor failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			goto done;
+		}
+		wc->dn2id_w = cursor;
 	}
 
 	cursor->set_key(cursor, ndn->bv_val);
@@ -138,20 +155,29 @@ wt_dn2id_delete(
 		   "<= wt_dn2id_delete %s: %d\n",
 		   ndn->bv_val, rc, 0 );
 done:
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
 	if(cursor){
 		cursor->close(cursor);
+		wc->dn2id_w = NULL;
 	}
+#endif
 	return rc;
 }
 
 int
 wt_dn2id(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
     struct berval *ndn,
     ID *id)
 {
-	WT_CURSOR *cursor = NULL;
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->dn2id;
 	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	int rc;
 	ID nid;
@@ -164,15 +190,18 @@ wt_dn2id(
 		goto done;
 	}
 
-	rc = session->open_cursor(session, WT_TABLE_DN2ID
-							  "(id)",
-                              NULL, NULL, &cursor);
-	if( rc ){
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id)
-			   ": cursor open failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
-		goto done;
+	if(!cursor){
+		rc = session->open_cursor(session, WT_TABLE_DN2ID
+								  "(id)",
+								  NULL, NULL, &cursor);
+		if( rc ){
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_dn2id)
+				   ": cursor open failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			goto done;
+		}
+		wc->dn2id = cursor;
 	}
 
 	cursor->set_key(cursor, ndn->bv_val);
@@ -199,9 +228,17 @@ wt_dn2id(
 	}
 
 done:
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
 	if(cursor){
 		cursor->close(cursor);
+		wc->dn2id = NULL;
 	}
+#endif
 
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE, "<= wt_dn2id: get failed: %s (%d)\n",
@@ -217,31 +254,43 @@ done:
 int
 wt_dn2id_has_children(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	ID id )
 {
 	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
+	WT_SESSION *session = wc->session;
 	WT_CURSOR *cursor = NULL;
 	int rc;
 	uint64_t key = id;
 
-	rc = session->open_cursor(session, WT_INDEX_PID,
-                              NULL, NULL, &cursor);
-	if( rc ){
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id_has_children)
-			   ": cursor open failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
-		goto done;
+	if(!cursor){
+		rc = session->open_cursor(session, WT_INDEX_PID,
+								  NULL, NULL, &cursor);
+		if( rc ){
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_dn2id_has_children)
+				   ": cursor open failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			goto done;
+		}
+		wc->index_pid = cursor;
 	}
 
 	cursor->set_key(cursor, key);
 	rc = cursor->search(cursor);
 
 done:
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
 	if(cursor){
 		cursor->close(cursor);
+		wc->index_pid = NULL;
 	}
+#endif
 
 	return rc;
 }
@@ -249,14 +298,15 @@ done:
 int
 wt_dn2idl(
 	Operation *op,
-	WT_SESSION *session,
+	wt_ctx *wc,
 	struct berval *ndn,
 	Entry *e,
 	ID *ids,
 	ID *stack)
 {
 	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
-	WT_CURSOR *cursor = NULL;
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->dn2id;
 	int exact = 0;
 	int rc;
 	char *revdn = NULL;

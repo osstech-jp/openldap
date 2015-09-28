@@ -112,7 +112,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	}
 
 	/* Can't do it if we have kids */
-	rc = wt_dn2id_has_children( op, wc->session, e->e_id );
+	rc = wt_dn2id_has_children( op, wc, e->e_id );
 	if( rc != WT_NOTFOUND ) {
 		switch( rc ) {
 		case 0:
@@ -275,7 +275,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		   wc->session, 0, 0 );
 
 	/* delete old DN */
-	rc = wt_dn2id_delete( op, wc->session, &e->e_nname);
+	rc = wt_dn2id_delete( op, wc, &e->e_nname);
 	if ( rc ) {
 		Debug(LDAP_DEBUG_TRACE, "<== " WT_FUNC ": delete failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
@@ -291,7 +291,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	dummy.e_attrs = NULL;
 
 	/* add new DN */
-	rc = wt_dn2id_add( op, wc->session, p->e_id, &dummy );
+	rc = wt_dn2id_add( op, wc, p->e_id, &dummy );
 	if ( rc ) {
 		Debug(LDAP_DEBUG_TRACE, "<=- " WT_FUNC
 			  ": add failed: %s (%d)\n",

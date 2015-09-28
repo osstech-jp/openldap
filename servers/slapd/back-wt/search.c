@@ -195,9 +195,9 @@ static int search_candidates(
     if( op->ors_deref & LDAP_DEREF_SEARCHING ) {
 		rc = search_aliases( op, rs, e, wc->session, ids, scopes, stack );
 		if ( WT_IDL_IS_ZERO( ids ) && rc == LDAP_SUCCESS )
-			rc = wt_dn2idl( op, wc->session, &e->e_nname, e, ids, stack );
+			rc = wt_dn2idl( op, wc, &e->e_nname, e, ids, stack );
 	} else {
-		rc = wt_dn2idl(op, wc->session, &e->e_nname, e, ids, stack );
+		rc = wt_dn2idl(op, wc, &e->e_nname, e, ids, stack );
 	}
 
 	if ( rc == LDAP_SUCCESS ) {
