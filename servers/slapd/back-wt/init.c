@@ -37,9 +37,9 @@ wt_db_init( BackendDB *be, ConfigReply *cr )
 
 	/* allocate backend-database-specific stuff */
     wi = ch_calloc( 1, sizeof(struct wt_info) );
-
-	wi->wi_dbenv_home = ch_strdup( SLAPD_DEFAULT_DB_DIR );
-	wi->wi_dbenv_config = ch_strdup("create");
+	wi->wi_home = ch_strdup( SLAPD_DEFAULT_DB_DIR );
+	wi->wi_config = ch_calloc( 1, WT_CONFIG_MAX + 1);
+	strcpy(wi->wi_config, "create");
 	wi->wi_lastid = 0;
 	wi->wi_search_stack_depth = DEFAULT_SEARCH_STACK_DEPTH;
 	wi->wi_search_stack = NULL;
@@ -56,7 +56,6 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	struct wt_info *wi = (struct wt_info *) be->be_private;
 	int rc;
 	struct stat st;
-	WT_CONNECTION *conn;
 	WT_SESSION *session;
 
 	if ( be->be_suffix == NULL ) {
@@ -67,31 +66,32 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	}
 
 	Debug( LDAP_DEBUG_ARGS,
-		   LDAP_XSTRING(wt_db_open) ": \"%s\"\n",
-		   be->be_suffix[0].bv_val, 0, 0 );
+		   LDAP_XSTRING(wt_db_open)
+		   ": \"%s\", home=%s, config=%s\n",
+		   be->be_suffix[0].bv_val, wi->wi_home, wi->wi_config );
 
 	/* Check existence of home. Any error means trouble */
-	rc = stat( wi->wi_dbenv_home, &st );
+	rc = stat( wi->wi_home, &st );
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   LDAP_XSTRING(wt_db_open) ": database \"%s\": "
 			   "cannot access database directory \"%s\" (%d).\n",
-			   be->be_suffix[0].bv_val, wi->wi_dbenv_home, errno );
+			   be->be_suffix[0].bv_val, wi->wi_home, errno );
 		return -1;
 	}
 
 	/* Open and create database */
-	rc = wiredtiger_open(wi->wi_dbenv_home, NULL,
-						 wi->wi_dbenv_config, &conn);
+	rc = wiredtiger_open(wi->wi_home, NULL,
+						 wi->wi_config, &wi->wi_conn);
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   LDAP_XSTRING(wt_db_open) ": database \"%s\": "
 			   "cannot open database \"%s\" (%d).\n",
-			   be->be_suffix[0].bv_val, wi->wi_dbenv_home, errno );
+			   be->be_suffix[0].bv_val, wi->wi_home, errno );
 		return -1;
 	}
 
-	rc = conn->open_session(conn, NULL, NULL, &session);
+	rc = wi->wi_conn->open_session(wi->wi_conn, NULL, NULL, &session);
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   LDAP_XSTRING(wt_db_open) ": database \"%s\": "
@@ -166,7 +166,6 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	}
 
 	session->close(session, NULL);
-	wi->wi_conn = conn;
 	wi->wi_flags |= WT_IS_OPEN;
 
     return LDAP_SUCCESS;
@@ -177,6 +176,10 @@ wt_db_close( BackendDB *be, ConfigReply *cr )
 {
 	struct wt_info *wi = (struct wt_info *) be->be_private;
 	int rc;
+
+	if ( !wi->wi_conn ) {
+		return -1;
+	}
 
 	rc = wi->wi_conn->close(wi->wi_conn, NULL);
 	if( rc ) {
@@ -197,13 +200,14 @@ wt_db_destroy( Backend *be, ConfigReply *cr )
 {
 	struct wt_info *wi = (struct wt_info *) be->be_private;
 
-	if( wi->wi_dbenv_home ) {
-		ch_free( wi->wi_dbenv_home );
-		wi->wi_dbenv_home = NULL;
+	if( wi->wi_home ) {
+		ch_free( wi->wi_home );
+		wi->wi_home = NULL;
 	}
-	if( wi->wi_dbenv_config ) {
-		ch_free( wi->wi_dbenv_config );
-		wi->wi_dbenv_config = NULL;
+
+	if( wi->wi_config ) {
+		ch_free( wi->wi_config );
+		wi->wi_config = NULL;
 	}
 
 	wt_attr_index_destroy( wi );

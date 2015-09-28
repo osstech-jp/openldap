@@ -33,10 +33,12 @@
 /* The default search IDL stack cache depth */
 #define DEFAULT_SEARCH_STACK_DEPTH  16
 
+#define WT_CONFIG_MAX 2048
+
 struct wt_info {
 	WT_CONNECTION *wi_conn;
-	char *wi_dbenv_home;
-	char *wi_dbenv_config;
+	char *wi_home;
+	char *wi_config;
 	ID	wi_lastid;
 
 	slap_mask_t wi_defaultmask;
