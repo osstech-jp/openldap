@@ -93,8 +93,8 @@ wt_cf_gen( ConfigArgs *c )
 		rc = 0;
 		switch( c->type ) {
 		case WT_DIRECTORY:
-			if ( wi->wi_dbenv_home ) {
-				c->value_string = ch_strdup( wi->wi_dbenv_home );
+			if ( wi->wi_home ) {
+				c->value_string = ch_strdup( wi->wi_home );
 			} else {
 				rc = 1;
 			}
@@ -109,12 +109,19 @@ wt_cf_gen( ConfigArgs *c )
 
 	switch( c->type ) {
 	case WT_DIRECTORY:
-		ch_free( wi->wi_dbenv_home );
-		wi->wi_dbenv_home = c->value_string;
+		ch_free( wi->wi_home );
+		wi->wi_home = c->value_string;
 		break;
 	case WT_CONFIG:
-		ch_free( wi->wi_dbenv_config );
-		wi->wi_dbenv_config = c->value_string;
+		if(strlen(wi->wi_config) + 1 + strlen(c->value_string) > WT_CONFIG_MAX){
+			fprintf( stderr, "%s: "
+					 "\"wtconfig\" are too long. Increase WT_CONFIG_MAX or you may realloc the buffer.\n",
+					 c->log );
+			return 1;
+		}
+		/* size of wi->wi_config is WT_CONFIG_MAX + 1, it's guaranteed with NUL-terminate. */
+		strcat(wi->wi_config, ",");
+		strcat(wi->wi_config, c->value_string);
 		break;
 
 	case WT_INDEX:
