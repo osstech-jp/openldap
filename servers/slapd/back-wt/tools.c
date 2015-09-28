@@ -232,7 +232,7 @@ static int wt_tool_next_id(
         return 0;
     }
 
-	rc = wt_dn2id(op, wc->session, &ndn, &id);
+	rc = wt_dn2id(op, wc, &ndn, &id);
 	if(rc == 0){
 		e->e_id = id;
 	}else if( rc == WT_NOTFOUND ){
@@ -259,7 +259,7 @@ static int wt_tool_next_id(
 			pid = id;
 		}
 		wt_next_id( op->o_bd, &e->e_id );
-		rc = wt_dn2id_add(op, wc->session, pid, e);
+		rc = wt_dn2id_add(op, wc, pid, e);
 		if( rc ){
 			snprintf( text->bv_val, text->bv_len,
 					  "wt_dn2id_add failed: %s (%d)",

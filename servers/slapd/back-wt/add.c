@@ -301,7 +301,7 @@ wt_add( Operation *op, SlapReply *rs )
 	wt_next_id( op->o_bd, &eid );
 	op->ora_e->e_id = eid;
 
-	rc = wt_dn2id_add( op, wc->session, pid, op->ora_e );
+	rc = wt_dn2id_add( op, wc, pid, op->ora_e );
 	if( rc ){
 		Debug( LDAP_DEBUG_TRACE,
 			   LDAP_XSTRING(wt_add)

@@ -73,8 +73,13 @@ struct wt_info {
 typedef struct {
 	WT_SESSION *session;
 	int is_begin_transaction;
+	WT_CURSOR *dn2id;
+	WT_CURSOR *dn2id_w;
 	WT_CURSOR *dn2entry;
 	WT_CURSOR *id2entry;
+	WT_CURSOR *id2entry_add;
+	WT_CURSOR *id2entry_update;
+	WT_CURSOR *index_pid;
 } wt_ctx;
 
 /* for the cache of attribute information (which are indexed, etc.) */

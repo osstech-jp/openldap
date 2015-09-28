@@ -26,11 +26,9 @@ static int wt_id2entry_put(
 	Operation *op,
 	wt_ctx *wc,
 	Entry *e,
-	const char *config )
+	WT_CURSOR *cursor)
 {
 	struct berval bv;
-	WT_SESSION *session = wc->session;
-	WT_CURSOR *cursor = NULL;
 	WT_ITEM item;
 	int rc;
 
@@ -40,16 +38,6 @@ static int wt_id2entry_put(
 	}
 	item.size = bv.bv_len;
 	item.data = bv.bv_val;
-
-	rc = session->open_cursor(session, WT_TABLE_ID2ENTRY, NULL,
-							  config, &cursor);
-	if ( rc ) {
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry_put)
-			   ": open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
-		goto done;
-	}
 
 	cursor->set_key(cursor, e->e_id);
 	cursor->set_value(cursor, e->e_ndn, &item);
@@ -65,10 +53,6 @@ static int wt_id2entry_put(
 done:
 	ch_free( bv.bv_val );
 
-	if(cursor){
-		cursor->close(cursor);
-	}
-
 	return rc;
 }
 
@@ -77,7 +61,37 @@ int wt_id2entry_add(
 	wt_ctx *wc,
 	Entry *e )
 {
-	return wt_id2entry_put(op, wc, e, "overwrite=false");
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->id2entry_add;
+	int rc;
+
+	if(!cursor){
+		rc = session->open_cursor(session, WT_TABLE_ID2ENTRY, NULL,
+								  "overwrite=false", &cursor);
+		if ( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_id2entry_put)
+				   ": open_cursor failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			return rc;
+		}
+		wc->id2entry_add = cursor;
+	}
+
+	rc = wt_id2entry_put(op, wc, e, cursor);
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
+	if(cursor){
+		cursor->close(cursor);
+		wc->id2entry_add = NULL;
+	}
+#endif
+
+	return rc;
 }
 
 int wt_id2entry_update(
@@ -85,7 +99,35 @@ int wt_id2entry_update(
 	wt_ctx *wc,
 	Entry *e )
 {
-	return wt_id2entry_put(op, wc, e, "overwrite=true");
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = wc->id2entry_update;
+	int rc;
+
+	if(!cursor){
+		rc = session->open_cursor(session, WT_TABLE_ID2ENTRY, NULL,
+								  "overwrite=true", &cursor);
+		if ( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   LDAP_XSTRING(wt_id2entry_put)
+				   ": open_cursor failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			return rc;
+		}
+		wc->id2entry_update = cursor;
+	}
+	rc = wt_id2entry_put(op, wc, e, cursor);
+
+#ifdef WT_CURSOR_CACHE
+	if(cursor){
+		cursor->reset(cursor);
+	}
+#else
+	if(cursor){
+		cursor->close(cursor);
+		wc->id2entry_update = NULL;
+	}
+#endif
+	return rc;
 }
 
 int wt_id2entry_delete(

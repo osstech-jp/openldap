@@ -48,7 +48,7 @@ wt_hasSubordinates(
 		return LDAP_OTHER;
 	}
 
-	rc = wt_dn2id_has_children(op, wc->session, e->e_id);
+	rc = wt_dn2id_has_children(op, wc, e->e_id);
 	switch(rc){
 	case 0:
 		*hasSubordinates = LDAP_COMPARE_TRUE;

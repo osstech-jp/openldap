@@ -273,7 +273,7 @@ wt_delete( Operation *op, SlapReply *rs )
 	}
 
     /* Can't do it if we have kids */
-	rc = wt_dn2id_has_children( op, wc->session, e->e_id );
+	rc = wt_dn2id_has_children( op, wc, e->e_id );
 	if( rc != WT_NOTFOUND ) {
 		switch( rc ) {
 		case 0:
@@ -307,7 +307,7 @@ wt_delete( Operation *op, SlapReply *rs )
 	}
 
 	/* delete from dn2id */
-	rc = wt_dn2id_delete( op, wc->session, &e->e_nname);
+	rc = wt_dn2id_delete( op, wc, &e->e_nname);
 	if ( rc ) {
 		Debug(LDAP_DEBUG_TRACE,
 			  "<== " LDAP_XSTRING(wt_delete)
