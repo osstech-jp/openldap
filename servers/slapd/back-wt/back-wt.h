@@ -70,6 +70,8 @@ struct wt_info {
 #define bv2ITEM(bv,item) ((item)->data = (bv)->bv_val, \
 						 (item)->size = (bv)->bv_len )
 
+#define WT_INDEX_CACHE_SIZE 1024
+
 typedef struct {
 	WT_SESSION *session;
 	int is_begin_transaction;
@@ -80,6 +82,7 @@ typedef struct {
 	WT_CURSOR *id2entry_add;
 	WT_CURSOR *id2entry_update;
 	WT_CURSOR *index_pid;
+	WT_CURSOR *index[WT_INDEX_CACHE_SIZE];
 } wt_ctx;
 
 /* for the cache of attribute information (which are indexed, etc.) */

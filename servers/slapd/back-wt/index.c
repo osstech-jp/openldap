@@ -154,7 +154,7 @@ static int indexer(
 	WT_SESSION *session = wc->session;
 	assert( mask != 0 );
 
-	cursor = wt_ctx_index_cursor(wc, atname, 1);
+	cursor = wt_ctx_open_index(wc, atname, 1);
 	if( !cursor ) {
 		Debug( LDAP_DEBUG_ANY,
 			   LDAP_XSTRING(indexer)
@@ -237,7 +237,7 @@ static int indexer(
 
 done:
 	if(cursor){
-		cursor->close(cursor);
+		cursor->reset(cursor);
 	}
 	return rc;
 }

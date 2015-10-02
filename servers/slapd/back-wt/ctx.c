@@ -96,42 +96,56 @@ wt_ctx_get(Operation *op, struct wt_info *wi){
 }
 
 WT_CURSOR *
-wt_ctx_index_cursor(wt_ctx *wc, struct berval *name, int create)
+wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create)
 {
-	WT_CURSOR *cursor = NULL;
+	WT_CURSOR **cursorp = NULL;
 	WT_SESSION *session = wc->session;
-	char tablename[1024];
+	char uri[1024];
 	int rc;
+	int i;
 
-	snprintf(tablename, sizeof(tablename), "table:%s", name->bv_val);
+	snprintf(uri, sizeof(uri), "table:%s", name->bv_val);
 
-	rc = session->open_cursor(session, tablename, NULL,
-							  "overwrite=false", &cursor);
+	for(i=0; wc->index[i] && i < WT_INDEX_CACHE_SIZE; i++){
+		if(!strcmp(uri, wc->index[i]->uri)){
+			return wc->index[i];
+		}
+	}
+
+	if (i >= WT_INDEX_CACHE_SIZE) {
+		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_ctx_open_index)
+			   ": table \"%s\": "
+			   "Reached max size of cursor cache: see WT_INDEX_CACHE_SIZE.\n",
+			   uri, 0, 0);
+		return NULL;
+	}
+	cursorp = &wc->index[i];
+
+	rc = session->open_cursor(session, uri, NULL, "overwrite=false", cursorp);
 	if (rc == ENOENT && create) {
-		rc = session->create(session,
-							 tablename,
+		rc = session->create(session, uri,
 							 "key_format=uQ,"
 							 "value_format=x,"
 							 "columns=(key, id, none)");
 		if( rc ) {
-			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(indexer) ": table \"%s\": "
-				   "cannot create idnex table: %s (%d)\n",
-				   tablename, wiredtiger_strerror(rc), rc);
+			Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_ctx_open_index)
+				   ": table \"%s\": "
+				   "cannot create index table: %s (%d)\n",
+				   uri, wiredtiger_strerror(rc), rc);
 			return NULL;
 		}
-		rc = session->open_cursor(session, tablename, NULL,
-								  "overwrite=false", &cursor);
+		rc = session->open_cursor(session, uri, NULL,
+								  "overwrite=false", cursorp);
 	}
 	if ( rc ) {
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry_put)
+		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_ctx_open_index)
+			   ": table \"%s\": "
 			   ": open cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   uri, wiredtiger_strerror(rc), rc);
 		return NULL;
 	}
 
-	return cursor;
+	return *cursorp;
 }
 
 /*
