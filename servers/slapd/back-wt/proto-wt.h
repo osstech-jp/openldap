@@ -172,7 +172,7 @@ int wt_dn2pentry( BackendDB *be,
 wt_ctx *wt_ctx_init(struct wt_info *wi);
 void wt_ctx_free(void *key, void *data);
 wt_ctx *wt_ctx_get(Operation *op, struct wt_info *wi);
-WT_CURSOR *wt_ctx_index_cursor(wt_ctx *wc, struct berval *name, int create);
+WT_CURSOR *wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create);
 
 
 /*
