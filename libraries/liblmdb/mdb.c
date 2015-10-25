@@ -3553,6 +3553,9 @@ mdb_env_init_meta(MDB_env *env, MDB_meta *meta)
 	mdb_env_init_meta0(env, meta);
 
 	p = calloc(2, psize);
+	if (!p)
+		return ENOMEM;
+
 	p->mp_pgno = 0;
 	p->mp_flags = P_META;
 	*(MDB_meta *)METADATA(p) = *meta;
@@ -7640,9 +7643,9 @@ mdb_page_merge(MDB_cursor *csrc, MDB_cursor *cdst)
 		uint16_t depth = cdst->mc_db->md_depth;
 		mdb_cursor_pop(cdst);
 		rc = mdb_rebalance(cdst);
-		/* Did the tree shrink? */
-		if (depth > cdst->mc_db->md_depth)
-			snum--;
+		/* Did the tree height change? */
+		if (depth != cdst->mc_db->md_depth)
+			snum += cdst->mc_db->md_depth - depth;
 		cdst->mc_snum = snum;
 		cdst->mc_top = snum-1;
 	}
@@ -7682,17 +7685,23 @@ mdb_rebalance(MDB_cursor *mc)
 {
 	MDB_node	*node;
 	int rc;
-	unsigned int ptop, minkeys;
+	unsigned int ptop, minkeys, thresh;
 	MDB_cursor	mn;
 	indx_t oldki;
 
-	minkeys = 1 + (IS_BRANCH(mc->mc_pg[mc->mc_top]));
+	if (IS_BRANCH(mc->mc_pg[mc->mc_top])) {
+		minkeys = 2;
+		thresh = 1;
+	} else {
+		minkeys = 1;
+		thresh = FILL_THRESHOLD;
+	}
 	DPRINTF(("rebalancing %s page %"Z"u (has %u keys, %.1f%% full)",
 	    IS_LEAF(mc->mc_pg[mc->mc_top]) ? "leaf" : "branch",
 	    mdb_dbg_pgno(mc->mc_pg[mc->mc_top]), NUMKEYS(mc->mc_pg[mc->mc_top]),
 		(float)PAGEFILL(mc->mc_txn->mt_env, mc->mc_pg[mc->mc_top]) / 10));
 
-	if (PAGEFILL(mc->mc_txn->mt_env, mc->mc_pg[mc->mc_top]) >= FILL_THRESHOLD &&
+	if (PAGEFILL(mc->mc_txn->mt_env, mc->mc_pg[mc->mc_top]) >= thresh &&
 		NUMKEYS(mc->mc_pg[mc->mc_top]) >= minkeys) {
 		DPRINTF(("no need to rebalance page %"Z"u, above fill threshold",
 		    mdb_dbg_pgno(mc->mc_pg[mc->mc_top])));
@@ -7826,10 +7835,9 @@ mdb_rebalance(MDB_cursor *mc)
 	 * move one key from it. Otherwise we should try to merge them.
 	 * (A branch page must never have less than 2 keys.)
 	 */
-	minkeys = 1 + (IS_BRANCH(mn.mc_pg[mn.mc_top]));
-	if (PAGEFILL(mc->mc_txn->mt_env, mn.mc_pg[mn.mc_top]) >= FILL_THRESHOLD && NUMKEYS(mn.mc_pg[mn.mc_top]) > minkeys) {
+	if (PAGEFILL(mc->mc_txn->mt_env, mn.mc_pg[mn.mc_top]) >= thresh && NUMKEYS(mn.mc_pg[mn.mc_top]) > minkeys) {
 		rc = mdb_node_move(&mn, mc);
-		if (mc->mc_ki[ptop]) {
+		if (mc->mc_ki[mc->mc_top-1]) {
 			oldki++;
 		}
 	} else {
@@ -8042,8 +8050,7 @@ mdb_page_split(MDB_cursor *mc, MDB_val *newkey, MDB_val *newdata, pgno_t newpgno
 		mc->mc_ki[0] = 0;
 		mc->mc_db->md_root = pp->mp_pgno;
 		DPRINTF(("root split! new root = %"Z"u", pp->mp_pgno));
-		mc->mc_db->md_depth++;
-		new_root = 1;
+		new_root = mc->mc_db->md_depth++;
 
 		/* Add left (implicit) pointer. */
 		if ((rc = mdb_node_add(mc, 0, NULL, NULL, mp->mp_pgno, 0)) != MDB_SUCCESS) {
@@ -8164,7 +8171,7 @@ mdb_page_split(MDB_cursor *mc, MDB_val *newkey, MDB_val *newdata, pgno_t newpgno
 				psize = 0;
 				if (newindx <= split_indx || newindx >= nkeys) {
 					i = 0; j = 1;
-					k = newindx >= nkeys ? nkeys : split_indx+2;
+					k = newindx >= nkeys ? nkeys : split_indx+1+IS_LEAF(mp);
 				} else {
 					i = nkeys; j = -1;
 					k = split_indx-1;
@@ -8356,7 +8363,7 @@ mdb_page_split(MDB_cursor *mc, MDB_val *newkey, MDB_val *newdata, pgno_t newpgno
 			if (new_root) {
 				int k;
 				/* root split */
-				for (k=m3->mc_top; k>=0; k--) {
+				for (k=new_root; k>=0; k--) {
 					m3->mc_ki[k+1] = m3->mc_ki[k];
 					m3->mc_pg[k+1] = m3->mc_pg[k];
 				}
