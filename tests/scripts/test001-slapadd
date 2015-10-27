@@ -77,6 +77,8 @@ else
 
 kill -HUP $KILLPIDS
 
+sleep 1
+
 rm -f $DBDIR1/*
 
 BASE2="ou=test,dc=example,dc=com"
