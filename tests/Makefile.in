@@ -20,6 +20,7 @@ BUILD_BDB=@BUILD_BDB@
 BUILD_HDB=@BUILD_HDB@
 BUILD_MDB=@BUILD_MDB@
 BUILD_SQL=@BUILD_SQL@
+BUILD_WT=@BUILD_WT@
 
 # test primary backends (default)
 test tests:
@@ -67,6 +68,14 @@ sql-yes sql-mod:	FORCE
 ldif test-ldif: FORCE
 	@echo "Initiating LDAP tests for LDIF..."
 	@$(RUN) -b ldif all
+
+wt test-wt:	wt-$(BUILD_WT)
+wt-no:
+	@echo "run configure with --enable-wt to run WT tests"
+
+wt-yes wt-mod: FORCE
+	@echo "Initiating LDAP tests for WT..."
+	@$(RUN) -b wt all
 
 regressions:	FORCE
 	@echo "Testing (available) ITS regressions"
