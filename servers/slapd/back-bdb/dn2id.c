@@ -726,14 +726,14 @@ hdb_dn2id(
 
 	DBTzero(&data);
 	data.size = sizeof(diskNode) + nrlen - sizeof(ID) - 1;
-	data.ulen = data.size * 3;
+	data.ulen = data.size * 32;
 	data.dlen = data.ulen;
 	data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
 
 	rc = db->cursor( db, txn, cursor, bdb->bi_db_opflags );
 	if ( rc ) return rc;
 
-	d = op->o_tmpalloc( data.size * 3, op->o_tmpmemctx );
+	d = op->o_tmpalloc( data.size * 32, op->o_tmpmemctx );
 	d->nrdnlen[1] = nrlen & 0xff;
 	d->nrdnlen[0] = (nrlen >> 8) | 0x80;
 	dlen[0] = d->nrdnlen[0];
