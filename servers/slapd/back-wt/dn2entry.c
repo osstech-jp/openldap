@@ -44,8 +44,11 @@ int wt_dn2entry( BackendDB *be,
 	WT_CURSOR *cursor = wc->dn2entry;
 
 	if( ndn->bv_len == 0 ){
-		/* parent of root dn */
-		return WT_NOTFOUND;
+		/* empty dn */
+		e = entry_alloc();
+		ber_dupbv(&e->e_nname, ndn);
+		*ep = e;
+		return LDAP_SUCCESS;
 	}
 
 	if(!cursor){
