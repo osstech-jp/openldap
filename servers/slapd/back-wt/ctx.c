@@ -72,7 +72,7 @@ wt_ctx_get(Operation *op, struct wt_info *wi){
 	wt_ctx *wc = NULL;
 
 	rc = ldap_pvt_thread_pool_getkey(op->o_threadctx,
-									 wt_ctx_get, &data, NULL );
+									 wi, &data, NULL );
 	if( rc ){
 		wc = wt_ctx_init(wi);
 		if( !wc ) {
@@ -83,7 +83,7 @@ wt_ctx_get(Operation *op, struct wt_info *wi){
 			return NULL;
 		}
 		rc = ldap_pvt_thread_pool_setkey( op->o_threadctx,
-										  wt_ctx_get, wc, wt_ctx_free,
+										  wi, wc, wt_ctx_free,
 										  NULL, NULL );
 		if( rc ) {
 			Debug( LDAP_DEBUG_ANY, "wt_ctx: setkey error(%d)\n",
