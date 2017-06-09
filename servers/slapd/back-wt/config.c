@@ -58,7 +58,7 @@ static ConfigTable wtcfg[] = {
 };
 
 static ConfigOCs wtocs[] = {
-	{ "( OLcfgDbOc:9.1 "
+	{ "( OLcfgDbOc:13.1 "
 	  "NAME 'olcWtConfig' "
 	  "DESC 'Wt backend ocnfiguration' "
 	  "SUP olcDatabaseConfig "
