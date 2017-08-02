@@ -41,6 +41,10 @@
 
 #include "ldap_rq.h"
 
+#ifdef HAVE_SYSTEMD_SD_DAEMON_H
+#include <systemd/sd-daemon.h>
+#endif
+
 #ifdef HAVE_POLL
 #include <poll.h>
 #endif
@@ -87,6 +91,9 @@ int slapd_daemon_mask;
 int slapd_tcp_rmem;
 int slapd_tcp_wmem;
 #endif /* LDAP_TCP_BUFFER */
+
+static ldap_pvt_thread_mutex_t listener_init_mutex;
+static ldap_pvt_thread_cond_t listener_init_cond;
 
 Listener **slap_listeners = NULL;
 static volatile sig_atomic_t listening = 1; /* 0 when slap_listeners closed */
@@ -2303,6 +2310,8 @@ slapd_daemon_task(
 				"daemon: listen(%s, 5) failed errno=%d (%s)\n",
 					slap_listeners[l]->sl_url.bv_val, err,
 					sock_errstr(err) );
+			slapd_shutdown = 2;
+			ldap_pvt_thread_cond_signal( &listener_init_cond );
 			return (void*)-1;
 		}
 
@@ -2312,11 +2321,14 @@ slapd_daemon_task(
 				"set nonblocking on a listening socket failed\n",
 				0, 0, 0 );
 			slapd_shutdown = 2;
+			ldap_pvt_thread_cond_signal( &listener_init_cond );
 			return (void*)-1;
 		}
 
 		slapd_add( slap_listeners[l]->sl_sd, 0, slap_listeners[l], -1 );
 	}
+
+	ldap_pvt_thread_cond_signal( &listener_init_cond );
 
 #ifdef HAVE_NT_SERVICE_MANAGER
 	if ( started_event != NULL ) {
@@ -2892,6 +2904,9 @@ slapd_daemon( void )
 		SLAP_SOCK_INIT(i);
 	}
 
+	ldap_pvt_thread_mutex_init( &listener_init_mutex );
+	ldap_pvt_thread_cond_init( &listener_init_cond );
+
 	for ( i=0; i<slapd_daemon_threads; i++ )
 	{
 		/* listener as a separate THREAD */
@@ -2904,6 +2919,20 @@ slapd_daemon( void )
 			return rc;
 		}
 	}
+
+	ldap_pvt_thread_cond_wait( &listener_init_cond, &listener_init_mutex );
+	if ( slapd_shutdown ) {
+		Debug( LDAP_DEBUG_ANY,
+			"listener initialization failed\n", 0, 0, 0 );
+		return 1;
+	}
+
+#ifdef HAVE_SYSTEMD
+	rc = sd_notify( 1, "READY=1" );
+	if ( rc < 0 )
+		Debug( LDAP_DEBUG_ANY,
+			"systemd sd_notify failed (%d)\n", rc, 0, 0 );
+#endif /* HAVE_SYSTEMD */
 
   	/* wait for the listener threads to complete */
 	for ( i=0; i<slapd_daemon_threads; i++ )
