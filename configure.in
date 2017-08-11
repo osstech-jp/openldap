@@ -693,6 +693,7 @@ fi
 AC_LIBTOOL_WIN32_DLL
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
+AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
 
 dnl ----------------------------------------------------------------
 dnl Perl
@@ -2107,12 +2108,13 @@ dnl ----------------------------------------------------------------
 dnl WiredTiger
 ol_link_wt=no
 if test $ol_enable_wt != no ; then
-	AC_CHECK_PROG(PKGCONFIG,pkg-config,yes)
-	if test "$PKGCONFIG" != yes ; then
-		AC_MSG_ERROR([could not locate pkg-config])
+	if test "$PKG_CONFIG" != no; then
+		WT_INCS=`$PKG_CONFIG --cflags wiredtiger`
+		WT_LIBS=`$PKG_CONFIG --libs wiredtiger`
+	else
+		WT_INCS=
+		WT_LIBS="-lwiredtiger"
 	fi
-	WT_INCS=`pkg-config --cflags wiredtiger`
-	WT_LIBS=`pkg-config --libs wiredtiger`
 
 	save_CFLAGS="$CFLAGS"
 	save_LDFLAGS="$LDFLAGS"
@@ -2200,6 +2202,7 @@ dnl
 dnl Check for systemd
 dnl
 WITH_SYSTEMD=no
+systemdsystemunitdir=
 ol_link_systemd=no
 if test $ol_with_systemd != no ; then
 	AC_CHECK_HEADERS(systemd/sd-daemon.h)
@@ -2222,6 +2225,17 @@ if test $ol_with_systemd != no ; then
 		WITH_SYSTEMD=yes
 	fi
 fi
+
+if test $WITH_SYSTEMD = yes; then
+	if test "$PKG_CONFIG" != no ; then
+		systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
+	elif test -d /usr/lib/systemd/system; then
+		systemdsystemunitdir=/usr/lib/systemd/system
+	else
+		systemdsystemunitdir=/lib/systemd/system
+	fi
+fi
+AC_SUBST(systemdsystemunitdir)
 
 dnl ----------------------------------------------------------------
 dnl Check for entropy sources

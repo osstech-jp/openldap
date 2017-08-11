@@ -1,0 +1,11 @@
+[Unit]
+Description=OpenLDAP Server
+After=syslog.target network-online.target
+Documentation=man:slapd
+
+[Service]
+Type=notify
+ExecStart=%LIBEXECDIR%/slapd -d 0 -h "ldapi:/// ldap:///"
+
+[Install]
+WantedBy=multi-user.target
