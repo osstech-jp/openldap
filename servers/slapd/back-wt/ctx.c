@@ -58,7 +58,16 @@ wt_ctx_free( void *key, void *data )
 	wt_ctx *wc = data;
 
 	if(wc->session){
-		wc->session->close(wc->session, NULL);
+		/*
+		 * The session will close automatically when db closing.
+		 * We can close session here, but it's require to check db
+		 * status, otherwise it will cause SEGV.
+		 */
+		/*
+		if(IS_DB_OPEN) {
+		    wc->session->close(wc->session, NULL);
+		}
+		*/
 		wc->session = NULL;
 	}
 
