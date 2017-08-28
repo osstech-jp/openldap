@@ -289,6 +289,9 @@ wt_back_initialize( BackendInfo *bi )
 	bi->bi_tool_entry_get = wt_tool_entry_get;
 	bi->bi_tool_entry_put = wt_tool_entry_put;
 	bi->bi_tool_entry_reindex = wt_tool_entry_reindex;
+	bi->bi_tool_sync = 0;
+	bi->bi_tool_dn2id_get = wt_tool_dn2id_get;
+	bi->bi_tool_entry_modify = wt_tool_entry_modify;
 
 	bi->bi_connection_init = 0;
 	bi->bi_connection_destroy = 0;

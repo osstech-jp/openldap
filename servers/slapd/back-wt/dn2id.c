@@ -26,7 +26,7 @@
 #include "config.h"
 #include "idl.h"
 
-char *
+static char *
 mkrevdn(struct berval src){
 	char *dst, *p;
 	char *rdn;
