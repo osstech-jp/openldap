@@ -1,0 +1,42 @@
+# Makefile.in for back-python
+# $OpenLDAP$
+## This work is part of OpenLDAP Software <http://www.openldap.org/>.
+##
+## Copyright 1998-2017 The OpenLDAP Foundation.
+## All rights reserved.
+##
+## Redistribution and use in source and binary forms, with or without
+## modification, are permitted only as authorized by the OpenLDAP
+## Public License.
+##
+## A copy of this license is available in the file LICENSE in the
+## top-level directory of the distribution or, alternatively, at
+## <http://www.OpenLDAP.org/license.html>.
+
+SRCS = init.c config.c bind.c search.c add.c delete.c
+OBJS = init.lo config.lo bind.lo search.lo add.lo delete.lo
+
+LDAP_INCDIR= ../../../include
+LDAP_LIBDIR= ../../../libraries
+
+BUILD_OPT = "--enable-mruby"
+BUILD_MOD = @BUILD_MRUBY@
+
+mod_DEFS = -DSLAPD_IMPORT
+MOD_DEFS = -I../../../@MRUBY_INCS@
+MOD_LIBS = ../../../@MRUBY_LIBS@
+
+shared_LDAP_LIBS = $(LDAP_LIBLDAP_R_LA) $(LDAP_LIBLBER_LA)
+NT_LINK_LIBS = -L.. -lslapd $(@BUILD_LIBS_DYNAMIC@_LDAP_LIBS)
+UNIX_LINK_LIBS = $(@BUILD_LIBS_DYNAMIC@_LDAP_LIBS)
+
+LIBBASE = back_mruby
+
+XINCPATH = -I.. -I$(srcdir)/..
+XDEFS = $(MODULES_CPPFLAGS)
+
+all-local-lib: ../.backend
+
+../.backend: lib$(LIBBASE).a
+	@touch $@
+

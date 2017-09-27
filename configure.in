@@ -337,7 +337,9 @@ OL_ARG_ENABLE(sock,[    --enable-sock	  enable sock backend],
 	no, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE(sql,[    --enable-sql	  enable sql backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(wt,[    --enable-wt	  enable WiredTiger backend],
+OL_ARG_ENABLE(wt,[    --enable-wt		  enable WiredTiger backend],
+	no, [no yes mod], ol_enable_backends)dnl
+OL_ARG_ENABLE(mruby,[    --enable-mruby	 enable mruby backend],
 	no, [no yes mod], ol_enable_backends)dnl
 
 dnl ----------------------------------------------------------------
@@ -496,7 +498,8 @@ elif test $ol_enable_modules != yes &&
 	test $ol_enable_shell = no &&
 	test $ol_enable_sock = no &&
 	test $ol_enable_sql = no &&
-	test $ol_enable_wt = no ; then
+	test $ol_enable_wt = no &&
+	test $ol_enable_mruby = no ; then
 	dnl no slapd backend
 
 	if test $ol_enable_slapd = yes ; then
@@ -565,6 +568,7 @@ BUILD_SHELL=no
 BUILD_SOCK=no
 BUILD_SQL=no
 BUILD_WT=no
+BUILD_MRUBY=no
 
 BUILD_ACCESSLOG=no
 BUILD_AUDITLOG=no
@@ -2128,6 +2132,60 @@ if test $ol_enable_wt != no ; then
 fi
 
 dnl ----------------------------------------------------------------
+dnl mruby
+ol_link_mruby=no
+if test $ol_enable_mruby != no ; then
+	AC_CHECK_PROGS(WGET,wget,missing)
+	if test "${WGET}" = "missing" ; then
+		AC_MSG_ERROR([Unable to locate wget.])
+	fi
+	AC_CHECK_PROGS(RUBY,ruby,missing)
+	if test "${RUBY}" = "missing" ; then
+		AC_MSG_ERROR([Unable to locate ruby.])
+	fi
+	AC_CHECK_PROGS(BISON,bison,missing)
+	if test "${BISON}" = "missing" ; then
+		AC_MSG_ERROR([Unable to locate bison.])
+	fi
+	AC_CHECK_PROGS(GIT,git,missing)
+	if test "${GIT}" = "missing" ; then
+		AC_MSG_ERROR([Unable to locate git.])
+	fi
+	MRUBY_VER="1.3.0"
+	MRUBY_URL="https://github.com/mruby/mruby/archive/${MRUBY_VER}.tar.gz"
+	if test ! -e "mruby-${MRUBY_VER}.tar.gz"; then
+		${WGET} -O mruby-${MRUBY_VER}.tar.gz ${MRUBY_URL}
+	fi
+	if test ! -e "mruby-${MRUBY_VER}"; then
+		tar xf mruby-${MRUBY_VER}.tar.gz
+	fi
+	if test ! -z "${MRUBY_BUILD_CONFIG}"; then
+		cp ${MRUBY_BUILD_CONFIG} mruby-${MRUBY_VER}/build_config.rb
+	fi
+	(cd mruby-${MRUBY_VER} && make)
+	if test $? -ne 0; then
+		AC_MSG_ERROR([Failed to build mruby.])
+	fi
+	MRUBY_MK=mruby-${MRUBY_VER}/build/host/lib/libmruby.flags.mak
+	MRUBY_LDFLAGS=`awk -F= '/^MRUBY_LDFLAGS /{print $2}' ${MRUBY_MK}`
+	MRUBY_LIBS=`awk -F= '/^MRUBY_LIBS /{print $2}' ${MRUBY_MK}`
+	MRUBY_LIBMRUBY_PATH=`awk -F= '/^MRUBY_LIBMRUBY_PATH /{print $2}' ${MRUBY_MK}`
+	MRUBY_INCS="mruby-${MRUBY_VER}/include" \
+	save_CFLAGS="$CFLAGS"
+	save_CPPFLAGS="$CPPFLAGS"
+	save_LDFLAGS="$LDFLAGS"
+	CFLAGS="${CFLAGS} -I${MRUBY_INCS}"
+	CPPFLAGS="$MRUBY_INCS"
+	LDFLAGS="$MRUBY_LIBS"
+	AC_CHECK_HEADERS([mruby.h])
+	CFLAGS="$save_CFLAGS"
+	CPPFLAGS="$save_CPPFLAGS"
+	LDFLAGS="$save_LDFLAGS"
+	SLAPD_LIBS="$SLAPD_LIBS ${MRUBY_LDFLAGS} ${MRUBY_LIBS}"
+	ol_link_mruby=yes
+fi
+
+dnl ----------------------------------------------------------------
 dnl International Components for Unicode
 OL_ICU
 if test "$ol_icu" = no ; then
@@ -2883,6 +2941,19 @@ if test "$ol_link_wt" != no ; then
 	AC_DEFINE_UNQUOTED(SLAPD_WT,$MFLAG,[define to support WiredTiger backend])
 fi
 
+if test "$ol_link_mruby" != no ; then
+	BUILD_SLAPD=yes
+	BUILD_MRUBY=$ol_enable_mruby
+	if test "$ol_enable_mruby" = mod; then
+		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-mruby"
+		MFLAG=SLAPD_MOD_DYNAMIC
+	else
+		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-mruby"
+		MFLAG=SLAPD_MOD_STATIC
+	fi
+	AC_DEFINE_UNQUOTED(SLAPD_MRUBY,$MFLAG,[define to support mruby backend])
+fi
+
 if test "$ol_enable_accesslog" != no ; then
 	BUILD_ACCESSLOG=$ol_enable_accesslog
 	if test "$ol_enable_accesslog" = mod ; then
@@ -3192,6 +3263,7 @@ dnl backends
   AC_SUBST(BUILD_SOCK)
   AC_SUBST(BUILD_SQL)
   AC_SUBST(BUILD_WT)
+  AC_SUBST(BUILD_MRUBY)
 dnl overlays
   AC_SUBST(BUILD_ACCESSLOG)
   AC_SUBST(BUILD_AUDITLOG)
@@ -3259,6 +3331,9 @@ AC_SUBST(SLAPD_SQL_INCLUDES)
 AC_SUBST(WT_INCS)
 AC_SUBST(WT_LIBS)
 
+AC_SUBST(MRUBY_INCS)
+AC_SUBST(MRUBY_LIBS)
+
 dnl ----------------------------------------------------------------
 dnl final help output
 AC_ARG_WITH(xxinstall,[
@@ -3305,6 +3380,7 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk]
 [servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk]
 [servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk]
+[servers/slapd/back-mruby/Makefile:build/top.mk:servers/slapd/back-mruby/Makefile.in:build/mod.mk]
 [servers/slapd/shell-backends/Makefile:build/top.mk:servers/slapd/shell-backends/Makefile.in:build/srv.mk]
 [servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk]
