@@ -863,6 +863,7 @@ AC_CHECK_HEADERS(	\
 	sys/types.h		\
 	sys/uio.h		\
 	sys/vmount.h	\
+	sys/prctl.h		\
 	syslog.h		\
 	termios.h		\
 	unistd.h		\
@@ -2530,6 +2531,7 @@ AC_CHECK_FUNCS(			\
 	send			\
 	sendmsg			\
 	sendto			\
+	prctl			\
 )
 
 dnl We actually may need to replace more than this.

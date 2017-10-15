@@ -30,6 +30,10 @@
 #include <grp.h>
 #endif
 
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
+#endif
+
 #include <ac/ctype.h>
 #include <ac/unistd.h>
 
@@ -171,6 +175,10 @@ slap_init_user( char *user, char *group )
 	}
 #endif
     }
+
+#if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
+    prctl(PR_SET_DUMPABLE, 1);
+#endif
 }
 
 #endif /* HAVE_PWD_H && HAVE_GRP_H */
