@@ -114,8 +114,8 @@ equality_candidates(
 	MatchingRule *mr;
 	WT_CURSOR *cursor = NULL;
 
-	Debug( LDAP_DEBUG_TRACE, "=> wt_equality_candidates (%s)\n",
-		   ava->aa_desc->ad_cname.bv_val, 0, 0 );
+	Debug( LDAP_DEBUG_TRACE, "=> wt_equality_candidates (%s=%s)\n",
+		   ava->aa_desc->ad_cname.bv_val, ava->aa_value.bv_val, 0 );
 
 	if ( ava->aa_desc == slap_schema.si_ad_entryDN ) {
 		ID id = NOID;
