@@ -70,7 +70,7 @@ wt_key_read(
 				   wiredtiger_strerror(rc), rc, 0 );
 			break;
 		}
-
+		comp = 0;
 		if (key.size != key2.size ||
 			(comp = memcmp(key2.data, key.data, key.size))) {
 			if(comp > 0){
