@@ -136,6 +136,41 @@ int wt_dn2pentry( BackendDB *be,
 	return rc;
 }
 
+/* dn2aentry - return ancestor entry */
+int wt_dn2aentry( BackendDB *be,
+				  wt_ctx *wc,
+				  struct berval *ndn,
+				  Entry **ep ){
+	Entry *e = NULL;
+	struct berval pdn;
+	int rc;
+
+	if (be_issuffix( be, ndn )) {
+		*ep = NULL;
+		return 0;
+	}
+
+	dnParent( ndn, &pdn );
+	rc = wt_dn2entry(be, wc, &pdn, &e);
+	switch( rc ) {
+	case 0:
+		*ep = e;
+		break;
+	case WT_NOTFOUND:
+		rc = wt_dn2aentry(be, wc, &pdn, &e);
+		if (rc != 0 && rc != WT_NOTFOUND) {
+			return rc;
+		}
+		*ep = e;
+		break;
+	default:
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_dn2aentry: failed %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+	}
+	return rc;
+}
+
 /*
  * Local variables:
  * indent-tabs-mode: t

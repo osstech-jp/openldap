@@ -339,6 +339,7 @@ wt_search( Operation *op, SlapReply *rs )
 	wt_ctx *wc;
 	int rc;
 	Entry *e = NULL;
+	Entry *ae = NULL;
 	Entry *base = NULL;
 	slap_mask_t mask;
 	time_t stoptime;
@@ -358,8 +359,7 @@ wt_search( Operation *op, SlapReply *rs )
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
         Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_search)
-			   ": wt_ctx_get failed: %d\n",
+			   "wt_search: wt_ctx_get failed: %d\n",
 			   rc, 0, 0 );
 		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
         return rc;
@@ -371,19 +371,12 @@ wt_search( Operation *op, SlapReply *rs )
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ARGS,
-			   "<== " LDAP_XSTRING(wt_search)
-			   ": no such object %s\n",
-			   op->o_req_dn.bv_val, 0, 0);
-		rs->sr_err = LDAP_REFERRAL;
-		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
-		send_ldap_result( op, rs );
-		goto done;
+		rc = wt_dn2aentry(op->o_bd, wc, &op->o_req_ndn, &ae);
+		break;
 	default:
 		/* TODO: error handling */
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_delete)
-			   ": error at wt_dn2entry() rc=%d\n",
+			   "wt_search: error at wt_dn2entry() rc=%d\n",
 			   rc, 0, 0 );
 		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
 		goto done;
@@ -394,7 +387,37 @@ wt_search( Operation *op, SlapReply *rs )
 	}
 
 	if ( e == NULL ) {
-		// TODO
+		if ( ae ) {
+			struct berval matched_dn = BER_BVNULL;
+			/* found ancestor entry */
+			if ( access_allowed( op, ae,
+								 slap_schema.si_ad_entry,
+								 NULL, ACL_DISCLOSE, NULL ) ) {
+				BerVarray erefs = NULL;
+				ber_dupbv( &matched_dn, &ae->e_name );
+				erefs = is_entry_referral( ae )
+					? get_entry_referrals( op, ae )
+					: NULL;
+				rs->sr_err = LDAP_REFERRAL;
+				rs->sr_matched = matched_dn.bv_val;
+				if ( erefs ) {
+					rs->sr_ref = referral_rewrite( erefs, &matched_dn,
+												   &op->o_req_dn, op->oq_search.rs_scope );
+					ber_bvarray_free( erefs );
+				}
+				Debug( LDAP_DEBUG_ARGS,
+					   "wt_search: ancestor is referral\n", 0, 0, 0);
+				rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
+				send_ldap_result( op, rs );
+				goto done;
+			}
+		}
+		Debug( LDAP_DEBUG_ARGS,
+			   "wt_search: no such object %s\n",
+			   op->o_req_dn.bv_val, 0, 0);
+		rs->sr_err = LDAP_NO_SUCH_OBJECT;
+		send_ldap_result( op, rs );
+		goto done;
 	}
 
 	/* NOTE: __NEW__ "search" access is required
@@ -413,8 +436,28 @@ wt_search( Operation *op, SlapReply *rs )
 	}
 
 	if ( !manageDSAit && is_entry_referral( e ) ) {
-		/* entry is a referral */
-		/* TODO: */
+		struct berval matched_dn = BER_BVNULL;
+		BerVarray erefs = NULL;
+		ber_dupbv( &matched_dn, &e->e_name );
+		erefs = get_entry_referrals( op, e );
+		rs->sr_err = LDAP_REFERRAL;
+		if ( erefs ) {
+			rs->sr_ref = referral_rewrite( erefs, &matched_dn,
+										   &op->o_req_dn, op->oq_search.rs_scope );
+			ber_bvarray_free( erefs );
+			if ( !rs->sr_ref ) {
+				rs->sr_text = "bad_referral object";
+			}
+		}
+		Debug( LDAP_DEBUG_ARGS,
+			   "wt_search: entry is referral\n", 0, 0, 0);
+		rs->sr_matched = matched_dn.bv_val;
+		send_ldap_result( op, rs );
+		ber_bvarray_free( rs->sr_ref );
+		rs->sr_ref = NULL;
+		ber_memfree( matched_dn.bv_val );
+		rs->sr_matched = NULL;
+		goto done;
 	}
 
 	if ( get_assert( op ) &&
@@ -623,7 +666,16 @@ loop_begin:
 		if ( !manageDSAit && op->oq_search.rs_scope != LDAP_SCOPE_BASE
 			 && is_entry_referral( e ) )
 		{
-			/* TODO: referral */
+			BerVarray erefs = get_entry_referrals( op, e );
+			rs->sr_ref = referral_rewrite( erefs, &e->e_name, NULL,
+										   op->oq_search.rs_scope == LDAP_SCOPE_ONELEVEL
+										   ? LDAP_SCOPE_BASE : LDAP_SCOPE_SUBTREE );
+			rs->sr_entry = e;
+			send_search_reference( op, rs );
+			rs->sr_entry = NULL;
+			ber_bvarray_free( rs->sr_ref );
+			ber_bvarray_free( erefs );
+			goto loop_continue;
 		}
 
 		if ( !manageDSAit && is_entry_glue( e )) {
@@ -700,6 +752,10 @@ done:
 
 	if( e ) {
 		wt_entry_return( e );
+	}
+
+	if( ae ) {
+		wt_entry_return( ae );
 	}
 
     return rs->sr_err;
