@@ -611,6 +611,119 @@ done:
 
 	return e->e_id;
 }
+
+int wt_tool_entry_delete(
+	BackendDB *be,
+	struct berval *ndn,
+	struct berval *text )
+{
+    struct wt_info *wi = (struct wt_info *) be->be_private;
+    int rc;
+	Operation op = {0};
+	Opheader ohdr = {0};
+	Entry *e = NULL;
+
+	assert( be != NULL );
+	assert( slapMode & SLAP_TOOL_MODE );
+
+	assert( text != NULL );
+	assert( text->bv_val != NULL );
+	assert( text->bv_val[0] == '\0' );	/* overconservative? */
+
+	assert ( ndn != NULL );
+	assert ( ndn->bv_val != NULL );
+
+	Debug( LDAP_DEBUG_TRACE,
+		   "=> wt_tool_entry_delete( %s )\n",
+		   ndn->bv_val, 0, 0 );
+
+	op.o_hdr = &ohdr;
+	op.o_bd = be;
+	op.o_tmpmemctx = NULL;
+	op.o_tmpmfuncs = &ch_mfuncs;
+
+	/* get entry */
+	rc = wt_dn2entry(op.o_bd, wc, ndn, &e);
+	switch( rc ) {
+	case 0:
+		break;
+	case WT_NOTFOUND:
+		Debug( LDAP_DEBUG_ARGS,
+			   "<== wt_tool_entry_delete: no such object %s\n",
+			   ndn->bv_val, 0, 0);
+		goto done;
+	default:
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_tool_entry_delete: error at wt_dn2entry() rc=%d\n",
+			   rc, 0, 0 );
+		goto done;
+	}
+
+	rc = wt_dn2id_has_children( &op, wc, e->e_id );
+	if( rc != WT_NOTFOUND ) {
+		/* subordinate objects must be deleted first */
+		rc = -1;
+		goto done;
+	}
+
+	rc = wc->session->begin_transaction(wc->session, NULL);
+	if( rc ){
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_tool_entry_delete: begin_transaction failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		goto done;
+	}
+
+	/* delete from dn2id */
+	rc = wt_dn2id_delete( &op, wc, &e->e_nname);
+	if ( rc ) {
+		Debug(LDAP_DEBUG_TRACE,
+			  "<== wt_tool_entry_delete: dn2id failed: %s (%d)\n",
+			  wiredtiger_strerror(rc), rc, 0 );
+		wc->session->rollback_transaction(wc->session, NULL);
+		goto done;
+	}
+
+	/* delete indices for old attributes */
+	rc = wt_index_entry_del( &op, wc, e );
+	if ( rc ) {
+		Debug(LDAP_DEBUG_TRACE,
+			  "<== wt_tool_entry_delete: index delete failed: %s (%d)\n",
+			  wiredtiger_strerror(rc), rc, 0 );
+		wc->session->rollback_transaction(wc->session, NULL);
+		goto done;
+	}
+
+	/* delete from id2entry */
+	rc = wt_id2entry_delete( &op, wc, e );
+	if ( rc ) {
+		Debug( LDAP_DEBUG_TRACE,
+			   "<== wt_tool_entry_delete: id2entry failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		wc->session->rollback_transaction(wc->session, NULL);
+		goto done;
+	}
+
+	rc = wc->session->commit_transaction(wc->session, NULL);
+	if( rc != 0 ) {
+		snprintf( text->bv_val, text->bv_len,
+				  "txn_commit failed: %s (%d)",
+				  wiredtiger_strerror(rc), rc );
+		Debug( LDAP_DEBUG_ANY,
+			   "=> wt_tool_entry_delete: %s\n",
+			   text->bv_val, 0, 0 );
+		goto done;
+	}
+
+done:
+	/* free entry */
+	if( e != NULL ) {
+		wt_entry_return( e );
+	}
+	return rc;
+}
+
+
 /*
  * Local variables:
  * indent-tabs-mode: t
