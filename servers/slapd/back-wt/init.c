@@ -292,7 +292,10 @@ wt_back_initialize( BackendInfo *bi )
 	bi->bi_tool_sync = 0;
 	bi->bi_tool_dn2id_get = wt_tool_dn2id_get;
 	bi->bi_tool_entry_modify = wt_tool_entry_modify;
+
+#if LDAP_VENDOR_VERSION_MINOR == X || LDAP_VENDOR_VERSION_MINOR >= 5
 	bi->bi_tool_entry_delete = wt_tool_entry_delete;
+#endif
 
 	bi->bi_connection_init = 0;
 	bi->bi_connection_destroy = 0;
