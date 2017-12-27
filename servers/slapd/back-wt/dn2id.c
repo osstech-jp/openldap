@@ -259,7 +259,7 @@ wt_dn2id_has_children(
 {
 	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	WT_SESSION *session = wc->session;
-	WT_CURSOR *cursor = NULL;
+	WT_CURSOR *cursor = wc->index_pid;
 	int rc;
 	uint64_t key = id;
 
