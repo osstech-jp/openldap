@@ -78,8 +78,7 @@ wt_dn2id_add(
 								  NULL, &cursor);
 		if(rc){
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2id_add)
-				   ": open_cursor failed: %s (%d)\n",
+				   "wt_dn2id_add: open_cursor failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -90,8 +89,7 @@ wt_dn2id_add(
 	rc = cursor->insert(cursor);
 	if(rc){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id_add)
-			   ": insert failed: %s (%d)\n",
+			   "wt_dn2id_add: insert failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
     }
@@ -133,8 +131,7 @@ wt_dn2id_delete(
 								  NULL, &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2id_delete)
-				   ": open_cursor failed: %s (%d)\n",
+				   "wt_dn2id_delete: open_cursor failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -145,8 +142,7 @@ wt_dn2id_delete(
 	rc = cursor->remove(cursor);
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id_delete)
-			   ": remove failed: %s (%d)\n",
+			   "wt_dn2id_delete: remove failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -196,8 +192,7 @@ wt_dn2id(
 								  NULL, NULL, &cursor);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2id)
-				   ": cursor open failed: %s (%d)\n",
+				   "wt_dn2id: cursor open failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -213,16 +208,14 @@ wt_dn2id(
 		goto done;
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id)
-			   ": search failed: %s (%d)\n",
+			   "wt_dn2id: search failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
 	rc = cursor->get_value(cursor, id);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id)
-			   ": get_value failed: %s (%d)\n",
+			   "wt_dn2id: get_value failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -268,8 +261,7 @@ wt_dn2id_has_children(
 								  NULL, NULL, &cursor);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2id_has_children)
-				   ": cursor open failed: %s (%d)\n",
+				   "wt_dn2id_has_children: cursor open failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -330,8 +322,7 @@ wt_dn2idl(
                               NULL, NULL, &cursor);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2idl)
-			   ": cursor open failed: %s (%d)\n",
+			   "wt_dn2idl: cursor open failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -339,8 +330,7 @@ wt_dn2idl(
 	rc = cursor->search_near(cursor, &exact);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2idl)
-			   ": search failed: %s (%d)\n",
+			   "wt_dn2idl: search failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -349,8 +339,7 @@ wt_dn2idl(
 		rc = cursor->get_key(cursor, &key);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2idl)
-				   ": get_key failed: %s (%d)\n",
+				   "wt_dn2idl: get_key failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -370,8 +359,7 @@ wt_dn2idl(
 		rc = cursor->get_value(cursor, &id, &pid);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2id)
-				   ": get_value failed: %s (%d)\n",
+				   "wt_dn2id: get_value failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -391,6 +379,12 @@ wt_dn2idl(
 	if (rc == WT_NOTFOUND ) {
 		rc = LDAP_SUCCESS;
 	}
+
+	Debug(LDAP_DEBUG_TRACE,
+		  "<= wt_dn2idl: id=%ld first=%ld last=%ld\n",
+		  (long) ids[0],
+		  (long) WT_IDL_FIRST(ids),
+		  (long) WT_IDL_LAST(ids) );
 
 done:
 	if(revdn){
@@ -419,8 +413,7 @@ wt_dn2id(
                               NULL, NULL, &cursor);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id)
-			   ": cursor open failed: %s (%d)\n",
+			   "wt_dn2id: cursor open failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		return rc;
 	}
