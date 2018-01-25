@@ -39,7 +39,11 @@ wt_db_init( BackendDB *be, ConfigReply *cr )
     wi = ch_calloc( 1, sizeof(struct wt_info) );
 	wi->wi_home = ch_strdup( SLAPD_DEFAULT_DB_DIR );
 	wi->wi_config = ch_calloc( 1, WT_CONFIG_MAX + 1);
-	strcpy(wi->wi_config, "create");
+	if ( slapMode & SLAP_TOOL_READONLY ) {
+		strcpy(wi->wi_config, "readonly");
+	} else {
+		strcpy(wi->wi_config, "create");
+	}
 	wi->wi_lastid = 0;
 	wi->wi_search_stack_depth = DEFAULT_SEARCH_STACK_DEPTH;
 	wi->wi_search_stack = NULL;
@@ -100,6 +104,10 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		return -1;
 	}
 
+	if ( slapMode & SLAP_TOOL_READONLY ) {
+		goto readonly;
+	}
+
 	rc = session->create(session,
 						 WT_TABLE_ID2ENTRY,
 						 "key_format=Q,"
@@ -154,6 +162,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		return -1;
 	}
 
+readonly:
 	rc = wt_last_id( be, session, &wi->wi_lastid);
 	if (rc) {
 		snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
