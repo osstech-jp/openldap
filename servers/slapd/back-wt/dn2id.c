@@ -371,6 +371,7 @@ wt_dn2idl(
 			}
 			continue;
 		}else{
+			/* TODO: It is better to sort ids at here. */
 			wt_idl_append_one(ids, id);
 		}
 		rc = cursor->next(cursor);
@@ -380,6 +381,7 @@ wt_dn2idl(
 		rc = LDAP_SUCCESS;
 	}
 
+	wt_idl_sort(ids, stack);
 	Debug(LDAP_DEBUG_TRACE,
 		  "<= wt_dn2idl: id=%ld first=%ld last=%ld\n",
 		  (long) ids[0],
