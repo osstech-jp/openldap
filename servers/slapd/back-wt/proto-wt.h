@@ -179,6 +179,7 @@ WT_CURSOR *wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create);
  */
 int wt_idlcache_get(wt_ctx *wc, struct berval *ndn, int scope, ID *ids);
 int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids);
+int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn);
 
 /*
  * former external.h

@@ -61,6 +61,7 @@ wt_dn2id_add(
 	ID pid,
 	Entry *e)
 {
+	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	int rc;
 	WT_SESSION *session = wc->session;
 	WT_CURSOR *cursor = wc->dn2id_w;
@@ -94,6 +95,10 @@ wt_dn2id_add(
 		goto done;
     }
 
+	if (wi->wi_flags & WT_USE_IDLCACHE) {
+		wt_idlcache_clear(op, wc, &e->e_nname);
+	}
+
 done:
 	if(revdn){
 		ch_free(revdn);
@@ -120,14 +125,19 @@ wt_dn2id_delete(
 	wt_ctx *wc,
 	struct berval *ndn)
 {
+	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	int rc = 0;
 	WT_SESSION *session = wc->session;
-	WT_CURSOR *cursor = wc->dn2id_ndn;
+	WT_CURSOR *cursor = wc->dn2id_w;
+	char *revdn = NULL;
 
 	Debug( LDAP_DEBUG_TRACE, "=> wt_dn2id_delete %s\n", ndn->bv_val, 0, 0 );
 
+	/* make reverse dn */
+	revdn = mkrevdn(*ndn);
+
 	if(!cursor){
-		rc = session->open_cursor(session, WT_INDEX_NDN, NULL,
+		rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
 								  NULL, &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
@@ -135,10 +145,10 @@ wt_dn2id_delete(
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
-		wc->dn2id_ndn = cursor;
+		wc->dn2id_w = cursor;
 	}
 
-	cursor->set_key(cursor, ndn->bv_val);
+	cursor->set_key(cursor, revdn);
 	rc = cursor->remove(cursor);
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -147,10 +157,17 @@ wt_dn2id_delete(
 		goto done;
 	}
 
+	if (wi->wi_flags & WT_USE_IDLCACHE) {
+		wt_idlcache_clear(op, wc, ndn);
+	}
+
 	Debug( LDAP_DEBUG_TRACE,
 		   "<= wt_dn2id_delete %s: %d\n",
 		   ndn->bv_val, rc, 0 );
 done:
+	if(revdn){
+		ch_free(revdn);
+	}
 
 #ifdef WT_CURSOR_CACHE
 	if(cursor){
@@ -159,7 +176,7 @@ done:
 #else
 	if(cursor){
 		cursor->close(cursor);
-		wc->dn2id_ndn = NULL;
+		wc->dn2id_w = NULL;
 	}
 #endif
 	return rc;
@@ -371,7 +388,7 @@ wt_dn2idl_db(
 
 	wt_idl_sort(ids, stack);
 	Debug(LDAP_DEBUG_TRACE,
-		  "<= wt_dn2idl_db: id=%ld first=%ld last=%ld\n",
+		  "<= wt_dn2idl_db: size=%ld first=%ld last=%ld\n",
 		  (long) ids[0],
 		  (long) WT_IDL_FIRST(ids),
 		  (long) WT_IDL_LAST(ids) );
@@ -428,6 +445,7 @@ wt_dn2idl(
 	if ( rc == 0 && wi->wi_flags & WT_USE_IDLCACHE ) {
 		wt_idlcache_set(wc, ndn, op->ors_scope, ids);
 	}
+
 	return rc;
 }
 
