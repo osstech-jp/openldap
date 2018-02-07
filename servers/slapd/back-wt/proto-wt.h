@@ -174,6 +174,11 @@ void wt_ctx_free(void *key, void *data);
 wt_ctx *wt_ctx_get(Operation *op, struct wt_info *wi);
 WT_CURSOR *wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create);
 
+/*
+ * former cache.c
+ */
+int wt_idlcache_get(wt_ctx *wc, struct berval *ndn, int scope, ID *ids);
+int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids);
 
 /*
  * former external.h

@@ -62,6 +62,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	struct stat st;
 	WT_SESSION *session = NULL;
 	WT_CURSOR *cursor = NULL;
+	WT_SESSION *cache_session = NULL;
 
 	if ( be->be_suffix == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "wt_db_open: need suffix.\n", 0, 0, 0 );
@@ -171,6 +172,40 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		return -1;
 	}
 
+	/* open in-memory database for idlcache */
+	rc = wiredtiger_open(NULL, NULL,
+						 "in_memory=true", &wi->wi_cache);
+	if( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_db_open: database \"%s\": "
+			   "cannot open database for cache (%d).\n",
+			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc), 0 );
+		return -1;
+	}
+
+	rc = wi->wi_cache->open_session(wi->wi_cache, NULL, NULL, &cache_session);
+	if( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_db_open: database \"%s\": "
+			   "cannot open session for cache: \"%s\"\n",
+			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc), 0);
+		return -1;
+	}
+
+	rc = cache_session->create(cache_session,
+							   WT_TABLE_IDLCACHE,
+							   "key_format=Sb,"
+							   "value_format=u,"
+							   "columns=(ndn,scope,idl)");
+	if( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_db_open: database \"%s\": "
+			   "cannot create idlcache table: \"%s\"\n",
+			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc), 0);
+		return -1;
+	}
+	wi->wi_flags |= WT_USE_IDLCACHE;
+
 readonly:
 	rc = wt_last_id( be, session, &wi->wi_lastid);
 	if (rc) {
@@ -184,8 +219,11 @@ readonly:
 	if (session) {
 		session->close(session, NULL);
 	}
-	wi->wi_flags |= WT_IS_OPEN;
+	if (cache_session) {
+		cache_session->close(cache_session, NULL);
+	}
 
+	wi->wi_flags |= WT_IS_OPEN;
     return LDAP_SUCCESS;
 }
 

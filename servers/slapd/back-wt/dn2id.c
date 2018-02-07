@@ -288,7 +288,7 @@ done:
 }
 
 int
-wt_dn2idl(
+wt_dn2idl_db(
 	Operation *op,
 	wt_ctx *wc,
 	struct berval *ndn,
@@ -307,7 +307,7 @@ wt_dn2idl(
 	ID id, pid;
 
 	Debug( LDAP_DEBUG_TRACE,
-		   "=> wt_dn2idl(\"%s\")\n",
+		   "=> wt_dn2idl_db(\"%s\")\n",
 		   ndn->bv_val, 0, 0 );
 
 	revdn = mkrevdn(*ndn);
@@ -318,7 +318,7 @@ wt_dn2idl(
 								  NULL, NULL, &cursor);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   "wt_dn2idl: cursor open failed: %s (%d)\n",
+				   "wt_dn2idl_db: cursor open failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -328,35 +328,40 @@ wt_dn2idl(
 	rc = cursor->search(cursor);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   "wt_dn2idl: search failed: %s (%d)\n",
+			   "wt_dn2idl_db: search failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
+	}
+
+	if( op->ors_scope == LDAP_SCOPE_CHILDREN ) {
+		cursor->next(cursor);
 	}
 
 	do {
 		rc = cursor->get_key(cursor, &key);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   "wt_dn2idl: get_key failed: %s (%d)\n",
+				   "wt_dn2idl_db: get_key failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
 		rc = cursor->get_value(cursor, &id, &pid);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   "wt_dn2id: get_value failed: %s (%d)\n",
+				   "wt_dn2id_db: get_value failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
+
 		if( strncmp(revdn, key, revdn_len) ){
 			break;
 		}
+
 		if( op->ors_scope == LDAP_SCOPE_ONELEVEL && e->e_id != pid ){
-			rc = cursor->next(cursor);
-			if ( rc ) break;
-			continue;
+			goto next;
 		}
 		wt_idl_append_one(ids, id);
+	next:
 		rc = cursor->next(cursor);
 	}while(rc == 0);
 
@@ -366,7 +371,7 @@ wt_dn2idl(
 
 	wt_idl_sort(ids, stack);
 	Debug(LDAP_DEBUG_TRACE,
-		  "<= wt_dn2idl: id=%ld first=%ld last=%ld\n",
+		  "<= wt_dn2idl_db: id=%ld first=%ld last=%ld\n",
 		  (long) ids[0],
 		  (long) WT_IDL_FIRST(ids),
 		  (long) WT_IDL_LAST(ids) );
@@ -387,6 +392,45 @@ done:
 #endif
 	return rc;
 }
+
+int
+wt_dn2idl(
+	Operation *op,
+	wt_ctx *wc,
+	struct berval *ndn,
+	Entry *e,
+	ID *ids,
+	ID *stack)
+{
+	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
+	int rc;
+
+	Debug( LDAP_DEBUG_TRACE,
+		   "=> wt_dn2idl(\"%s\")\n",
+		   ndn->bv_val, 0, 0 );
+
+	if(op->ors_scope != LDAP_SCOPE_ONELEVEL &&
+	   be_issuffix( op->o_bd, &e->e_nname )){
+		WT_IDL_ALL(wi, ids);
+		return 0;
+	}
+
+	if (wi->wi_flags & WT_USE_IDLCACHE) {
+		rc = wt_idlcache_get(wc, ndn, op->ors_scope, ids);
+		if (rc == 0) {
+			/* cache hit */
+			return rc;
+		}
+		/* cache miss */
+	}
+
+	rc = wt_dn2idl_db(op, wc, ndn, e, ids, stack);
+	if ( rc == 0 && wi->wi_flags & WT_USE_IDLCACHE ) {
+		wt_idlcache_set(wc, ndn, op->ors_scope, ids);
+	}
+	return rc;
+}
+
 
 /*
  * Local variables:

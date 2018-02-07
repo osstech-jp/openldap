@@ -38,14 +38,20 @@ wt_ctx_init(struct wt_info *wi)
 
 	memset(wc, 0, sizeof(wt_ctx));
 
-	if(!wc->session){
-		rc = wi->wi_conn->open_session(wi->wi_conn, NULL, NULL, &wc->session);
-		if( rc ) {
-			Debug( LDAP_DEBUG_ANY,
-				   "wt_ctx_init: open_session error %s(%d)\n",
-				   wiredtiger_strerror(rc), rc, 0 );
-			return NULL;
-		}
+	rc = wi->wi_conn->open_session(wi->wi_conn, NULL, NULL, &wc->session);
+	if( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_ctx_init: open_session error %s(%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		return NULL;
+	}
+
+	rc = wi->wi_cache->open_session(wi->wi_cache, NULL, NULL, &wc->cache_session);
+	if( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_ctx_init: cannnot open cache session %s(%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		return NULL;
 	}
 
 	return wc;
