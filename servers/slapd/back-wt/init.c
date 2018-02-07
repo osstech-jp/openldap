@@ -36,7 +36,7 @@ wt_db_init( BackendDB *be, ConfigReply *cr )
 		   0, 0, 0 );
 
 	/* allocate backend-database-specific stuff */
-    wi = ch_calloc( 1, sizeof(struct wt_info) );
+	wi = ch_calloc( 1, sizeof(struct wt_info) );
 	wi->wi_home = ch_strdup( SLAPD_DEFAULT_DB_DIR );
 	wi->wi_config = ch_calloc( 1, WT_CONFIG_MAX + 1);
 	if ( slapMode & SLAP_TOOL_READONLY ) {
@@ -60,7 +60,8 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	struct wt_info *wi = (struct wt_info *) be->be_private;
 	int rc;
 	struct stat st;
-	WT_SESSION *session;
+	WT_SESSION *session = NULL;
+	WT_CURSOR *cursor = NULL;
 
 	if ( be->be_suffix == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "wt_db_open: need suffix.\n", 0, 0, 0 );
@@ -105,6 +106,16 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		goto readonly;
 	}
 
+	/* checking for obsolete table */
+	rc = session->verify(session, WT_INDEX_REVDN, NULL);
+	if ( !rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_db_open: database \"%s\": "
+			   "incompatible wiredtiger table, please restore from LDIF.\n",
+			   be->be_suffix[0].bv_val, 0, 0);
+		return -1;
+	}
+
 	/* create tables and indexes */
 	rc = session->create(session,
 						 WT_TABLE_ID2ENTRY,
@@ -122,8 +133,8 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	rc = session->create(session,
 						 WT_TABLE_DN2ID,
 						 "key_format=S,"
-						 "value_format=QQS,"
-						 "columns=(ndn,id,pid,revdn)");
+						 "value_format=SQQ,"
+						 "columns=(revdn,ndn,id,pid)");
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
@@ -151,7 +162,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		return -1;
 	}
 
-	rc = session->create(session, WT_INDEX_REVDN, "columns=(revdn)");
+	rc = session->create(session, WT_INDEX_NDN, "columns=(ndn)");
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
@@ -170,7 +181,9 @@ readonly:
 		return rc;
 	}
 
-	session->close(session, NULL);
+	if (session) {
+		session->close(session, NULL);
+	}
 	wi->wi_flags |= WT_IS_OPEN;
 
     return LDAP_SUCCESS;

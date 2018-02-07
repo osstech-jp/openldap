@@ -37,6 +37,7 @@
 
 struct wt_info {
 	WT_CONNECTION *wi_conn;
+	WT_CONNECTION *wi_cache;
 	char *wi_home;
 	char *wi_config;
 	ID	wi_lastid;
@@ -61,7 +62,9 @@ struct wt_info {
 #define WT_TABLE_DN2ID "table:dn2id"
 
 #define WT_INDEX_DN "index:id2entry:dn"
+#define WT_INDEX_NDN "index:dn2id:ndn"
 #define WT_INDEX_PID "index:dn2id:pid"
+/* Currently, revdn is primary key, the revdn index is obsolete. */
 #define WT_INDEX_REVDN "index:dn2id:revdn"
 
 #define ITEMzero(item) (memset((item), 0, sizeof(WT_ITEM)))
@@ -77,6 +80,7 @@ typedef struct {
 	int is_begin_transaction;
 	WT_CURSOR *dn2id;
 	WT_CURSOR *dn2id_w;
+	WT_CURSOR *dn2id_ndn;
 	WT_CURSOR *dn2entry;
 	WT_CURSOR *id2entry;
 	WT_CURSOR *id2entry_add;

@@ -31,8 +31,7 @@ wt_ctx_init(struct wt_info *wi)
 	wc = ch_malloc( sizeof( wt_ctx ) );
 	if( !wc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_ctx_init)
-			   ": cannot allocate memory\n",
+			   "wt_ctx_init: cannot allocate memory\n",
 			   0, 0, 0 );
 		return NULL;
 	}
@@ -43,12 +42,12 @@ wt_ctx_init(struct wt_info *wi)
 		rc = wi->wi_conn->open_session(wi->wi_conn, NULL, NULL, &wc->session);
 		if( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_ctx_session)
-				   ": open_session error %s(%d)\n",
+				   "wt_ctx_init: open_session error %s(%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			return NULL;
 		}
 	}
+
 	return wc;
 }
 
@@ -86,8 +85,7 @@ wt_ctx_get(Operation *op, struct wt_info *wi){
 		wc = wt_ctx_init(wi);
 		if( !wc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_ctx)
-				   ": wt_ctx_init failed\n",
+				   "wt_ctx_get: wt_ctx_init failed\n",
 				   0, 0, 0 );
 			return NULL;
 		}
@@ -122,8 +120,8 @@ wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create)
 	}
 
 	if (i >= WT_INDEX_CACHE_SIZE) {
-		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_ctx_open_index)
-			   ": table \"%s\": "
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_ctx_open_index: table \"%s\": "
 			   "Reached max size of cursor cache: see WT_INDEX_CACHE_SIZE.\n",
 			   uri, 0, 0);
 		return NULL;
@@ -137,8 +135,8 @@ wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create)
 							 "value_format=x,"
 							 "columns=(key, id, none)");
 		if( rc ) {
-			Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_ctx_open_index)
-				   ": table \"%s\": "
+			Debug( LDAP_DEBUG_ANY,
+				   "wt_ctx_open_index: table \"%s\": "
 				   "cannot create index table: %s (%d)\n",
 				   uri, wiredtiger_strerror(rc), rc);
 			return NULL;
@@ -147,8 +145,8 @@ wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create)
 								  "overwrite=false", cursorp);
 	}
 	if ( rc ) {
-		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_ctx_open_index)
-			   ": table \"%s\": "
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_ctx_open_index: table \"%s\": "
 			   ": open cursor failed: %s (%d)\n",
 			   uri, wiredtiger_strerror(rc), rc);
 		return NULL;
