@@ -47,8 +47,7 @@ static int base_candidate(
 	ID *ids )
 {
 	Debug(LDAP_DEBUG_ARGS,
-		  LDAP_XSTRING(base_candidate)
-		  ": base: \"%s\" (0x%08lx)\n",
+		  "base_candidate: base: \"%s\" (0x%08lx)\n",
 		  e->e_nname.bv_val, (long) e->e_id, 0);
 
 	ids[0] = 1;
@@ -138,8 +137,7 @@ static int search_candidates(
 	AttributeAssertion aa_subentry = ATTRIBUTEASSERTION_INIT;
 
 	Debug(LDAP_DEBUG_TRACE,
-		  LDAP_XSTRING(wt_search_candidates)
-		  ": base=\"%s\" (0x%08lx) scope=%d\n",
+		  "wt_search_candidates: base=\"%s\" (0x%08lx) scope=%d\n",
 		  e->e_nname.bv_val, (long) e->e_id, op->oq_search.rs_scope );
 
 	xf.f_or = op->oq_search.rs_filter;
@@ -211,14 +209,12 @@ static int search_candidates(
 
     if( rc ) {
 		Debug(LDAP_DEBUG_TRACE,
-			  LDAP_XSTRING(wt_search_candidates)
-			  ": failed (rc=%d)\n",
+			  "wt_search_candidates: failed (rc=%d)\n",
 			  rc, NULL, NULL );
 
 	} else {
 		Debug(LDAP_DEBUG_TRACE,
-			  LDAP_XSTRING(wt_search_candidates)
-			  ": id=%ld first=%ld last=%ld\n",
+			  "wt_search_candidates: id=%ld first=%ld last=%ld\n",
 			  (long) ids[0],
 			  (long) WT_IDL_FIRST(ids),
 			  (long) WT_IDL_LAST(ids));
@@ -285,8 +281,7 @@ send_paged_response(
 	struct berval cookie;
 
 	Debug(LDAP_DEBUG_ARGS,
-		  LDAP_XSTRING(send_paged_response)
-		  ": lastid=0x%08lx nentries=%d\n",
+		  "send_paged_response: lastid=0x%08lx nentries=%d\n",
 		  lastid ? *lastid : 0, rs->sr_nentries, NULL );
 
 	ctrls[1] = NULL;
@@ -350,7 +345,7 @@ wt_search( Operation *op, SlapReply *rs )
 	int tentries = 0;
 	unsigned nentries = 0;
 
-	Debug( LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(wt_search) ": %s\n",
+	Debug( LDAP_DEBUG_ARGS, "==> wt_search: %s\n",
 		   op->o_req_dn.bv_val, 0, 0 );
     attrs = op->oq_search.rs_attrs;
 
@@ -489,7 +484,7 @@ wt_search( Operation *op, SlapReply *rs )
 			break;
 		default:
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_search) ": error search_candidates\n",
+				   "wt_search: error search_candidates\n",
 				   0, 0, 0 );
 			send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
 			goto done;
@@ -502,7 +497,7 @@ wt_search( Operation *op, SlapReply *rs )
 
 	if ( candidates[0] == 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
-			   LDAP_XSTRING(wt_search) ": no candidates\n",
+			   "wt_search: no candidates\n",
 			   0, 0, 0 );
 		goto nochange;
 	}
@@ -543,8 +538,7 @@ wt_search( Operation *op, SlapReply *rs )
 		id = wt_idl_first( candidates, &cursor );
 		if ( id == NOID ) {
 			Debug( LDAP_DEBUG_TRACE,
-				   LDAP_XSTRING(wt_search)
-				   ": no paged results candidates\n",
+				   "wt_search: no paged results candidates\n",
 				   0, 0, 0 );
 			send_paged_response( op, rs, &lastid, 0 );
 
@@ -629,7 +623,11 @@ loop_begin:
 		case LDAP_SCOPE_ONELEVEL:
 			scopeok = 1;
 			break;
+		case LDAP_SCOPE_CHILDREN:
+			if ( id == base->e_id ) break;
+			/* Fall-thru */
 		case LDAP_SCOPE_SUBTREE:
+			/* TODO: check for range ids */
 			scopeok = 1;
 			break;
 		}
@@ -652,8 +650,7 @@ loop_begin:
 		if ( !scopeok )
 		{
 			Debug( LDAP_DEBUG_TRACE,
-				   LDAP_XSTRING(wt_search)
-				   ": %ld scope not okay\n",
+				   "wt_search: %ld scope not okay\n",
 				   (long) id, 0, 0 );
 			goto loop_continue;
 		}
@@ -719,8 +716,7 @@ loop_begin:
 			}
 		} else {
 			Debug( LDAP_DEBUG_TRACE,
-				   LDAP_XSTRING(wt_search)
-				   ": %ld does not match filter\n",
+				   "wt_search: %ld does not match filter\n",
 				   (long) id, 0, 0 );
 		}
 
