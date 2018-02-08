@@ -124,20 +124,17 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 {
 	BackendDB *be = op->o_bd;
 	int rc;
-	struct berval pdn;
+	struct berval pdn = *ndn;
 	WT_ITEM item;
 	WT_SESSION *session = wc->cache_session;
 	WT_CURSOR *cursor = wc->idlcache;
+	int level = 0;
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "=> wt_idlcache_clear(\"%s\")\n",
 		   ndn->bv_val, 0, 0 );
 
 	if (be_issuffix( be, ndn )) {
-		return 0;
-	}
-	dnParent( ndn, &pdn );
-	if (be_issuffix( be, &pdn )) {
 		return 0;
 	}
 
@@ -153,16 +150,21 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 		wc->idlcache = cursor;
 	}
 
-	cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_ONE);
-	cursor->remove(cursor);
+	do{
+		dnParent( &pdn, &pdn );
+		level++;
+		if (level == 1) {
+			/* clear only parent level cache */
+			cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_ONE);
+			cursor->remove(cursor);
+		}
+		cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_SUB);
+		cursor->remove(cursor);
+		cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_CHILDREN);
+		cursor->remove(cursor);
+		level++;
+	}while(!be_issuffix( be, &pdn ));
 
-	cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_SUB);
-	cursor->remove(cursor);
-
-	cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_CHILDREN);
-	cursor->remove(cursor);
-
-	/* TODO: delete ancestor cache */
 	return 0;
 }
 
