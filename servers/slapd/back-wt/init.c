@@ -173,7 +173,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	}
 
 	/* open in-memory database for idlcache */
-	rc = wiredtiger_open(NULL, NULL,
+	rc = wiredtiger_open(be->be_suffix[0].bv_val, NULL,
 						 "in_memory=true", &wi->wi_cache);
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
