@@ -710,8 +710,19 @@ loop_begin:
 			switch ( rs->sr_err ) {
 			case LDAP_SUCCESS:  /* entry sent ok */
 				break;
+			case LDAP_UNAVAILABLE:
+				rs->sr_err = LDAP_OTHER;
+				goto done;
+			case LDAP_SIZELIMIT_EXCEEDED:
+				rs->sr_ref = rs->sr_v2ref;
+				send_ldap_result( op, rs );
+				rs->sr_err = LDAP_SUCCESS;
+				goto done;
 			default:
-				/* TODO: error handling */
+				Debug( LDAP_DEBUG_ANY,
+					   "wt_search: unexpected error: err=%d, id=%ld\n",
+					   rs->sr_err, (long) id, 0);
+				rs->sr_err = LDAP_OTHER;
 				break;
 			}
 		} else {
