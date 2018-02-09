@@ -189,7 +189,7 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-if test $BACKEND != "bdb" ; then
+if test $BACKEND != "bdb" -a $BACKEND != "wt"; then
 	$LDAPMODIFY -v -D "$REFINTDN" -h $LOCALHOST -p $PORT1 -w $PASSWD > \
 		$TESTOUT 2>&1 << EDEL
 version: 1
