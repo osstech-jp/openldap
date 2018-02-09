@@ -58,8 +58,9 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	int parent_is_glue = 0;
 	int parent_is_leaf = 0;
 
-	Debug( LDAP_DEBUG_TRACE, "==> wt_modrdn(%s,%s,%s)\n",
-		   op->o_req_dn.bv_val,op->oq_modrdn.rs_newrdn.bv_val,
+	Debug( LDAP_DEBUG_TRACE, "==> wt_modrdn(%s -> newrdn=%s - newsup=%s)\n",
+		   op->o_req_dn.bv_val,
+		   op->oq_modrdn.rs_newrdn.bv_val,
 		   op->oq_modrdn.rs_newSup?op->oq_modrdn.rs_newSup->bv_val:"NULL" );
 
 	ctrls[num_ctrls] = NULL;
@@ -241,7 +242,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 				Debug( LDAP_DEBUG_ANY,
 					   "<== wt_modrdn: new superior not found: %s\n",
 					   np_ndn->bv_val, 0, 0 );
-				rs->sr_err = LDAP_OTHER;
+				rs->sr_err = LDAP_NO_SUCH_OBJECT;
 				rs->sr_text = "new superior not found";
 				goto return_results;
 			default:
