@@ -25,8 +25,6 @@
 #include "back-wt.h"
 #include "config.h"
 
-#define WT_FUNC LDAP_XSTRING(wt_modrdn)
-
 int
 wt_modrdn( Operation *op, SlapReply *rs )
 {
@@ -41,6 +39,10 @@ wt_modrdn( Operation *op, SlapReply *rs )
 
 	struct berval p_dn, p_ndn;
 	struct berval new_dn = {0, NULL}, new_ndn = {0, NULL};
+
+	Entry *np = NULL;             /* newSuperior Entry */
+	struct berval *np_dn = NULL;  /* newSuperior dn */
+	struct berval *np_ndn = NULL; /* newSuperior ndn */
 	struct berval *new_parent_dn = NULL; /* np_dn, p_dn, or NULL */
 
 	int manageDSAit = get_manageDSAit( op );
@@ -56,7 +58,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	int parent_is_glue = 0;
 	int parent_is_leaf = 0;
 
-	Debug( LDAP_DEBUG_TRACE, "==>" WT_FUNC "(%s,%s,%s)\n",
+	Debug( LDAP_DEBUG_TRACE, "==> wt_modrdn(%s,%s,%s)\n",
 		   op->o_req_dn.bv_val,op->oq_modrdn.rs_newrdn.bv_val,
 		   op->oq_modrdn.rs_newSup?op->oq_modrdn.rs_newSup->bv_val:"NULL" );
 
@@ -66,7 +68,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
-		Debug( LDAP_DEBUG_ANY, WT_FUNC ": wt_ctx_get failed\n", 0, 0, 0);
+		Debug( LDAP_DEBUG_ANY, "wt_modrdn: wt_ctx_get failed\n", 0, 0, 0);
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		send_ldap_result( op, rs );
@@ -79,13 +81,13 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ARGS, "<== " WT_FUNC ": no such object %s\n",
+		Debug( LDAP_DEBUG_ARGS, "<== wt_modrdn: no such object %s\n",
 			   op->o_req_dn.bv_val, 0, 0);
 		/* TODO: lookup referrals */
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		goto return_results;
 	default:
-		Debug( LDAP_DEBUG_ANY, "<== " WT_FUNC ": wt_dn2entry failed (%d)\n",
+		Debug( LDAP_DEBUG_ANY, "<== wt_modrdn: wt_dn2entry failed (%d)\n",
 			   rc, 0, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
@@ -104,7 +106,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	/* check write on old entry */
 	rc = access_allowed( op, e, entry, NULL, ACL_WRITE, NULL );
 	if ( !rc ) {
-		Debug( LDAP_DEBUG_TRACE, WT_FUNC ": no access to entry\n", 0,
+		Debug( LDAP_DEBUG_TRACE, "wt_modrdn: no access to entry\n", 0,
 			   0, 0 );
 		rs->sr_text = "no write access to old entry";
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
@@ -116,14 +118,14 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	if( rc != WT_NOTFOUND ) {
 		switch( rc ) {
 		case 0:
-			Debug(LDAP_DEBUG_ARGS, "<== " WT_FUNC ": non-leaf %s\n",
+			Debug(LDAP_DEBUG_ARGS, "<== wt_modrdn: non-leaf %s\n",
 				  op->o_req_dn.bv_val, 0, 0);
 			rs->sr_err = LDAP_NOT_ALLOWED_ON_NONLEAF;
 			rs->sr_text = "subtree rename not supported";
 			break;
 		default:
-			Debug(LDAP_DEBUG_ARGS, "<== " WT_FUNC
-				  ": has_children failed: %s (%d)\n",
+			Debug(LDAP_DEBUG_ARGS,
+				  "<== wt_modrdn: has_children failed: %s (%d)\n",
 				  wiredtiger_strerror(rc), rc, 0 );
 			rs->sr_err = LDAP_OTHER;
 			rs->sr_text = "internal error";
@@ -135,8 +137,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		/* parent is a referral, don't allow add */
 		rs->sr_ref = get_entry_referrals( op, e );
 
-		Debug( LDAP_DEBUG_TRACE, WT_FUNC
-			   ": entry %s is referral\n", e->e_dn, 0, 0 );
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modrdn: entry %s is referral\n", e->e_dn, 0, 0 );
 
 		rs->sr_err = LDAP_REFERRAL,
 		rs->sr_matched = e->e_name.bv_val;
@@ -162,12 +164,14 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ARGS, "<== " WT_FUNC ": parent does not exist %s\n",
+		Debug( LDAP_DEBUG_ARGS,
+			   "<== wt_modrdn: parent does not exist %s\n",
 			   p_ndn.bv_val, 0, 0);
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		goto return_results;
 	default:
-		Debug( LDAP_DEBUG_ANY, "<== " WT_FUNC ": wt_dn2entry failed (%d)\n",
+		Debug( LDAP_DEBUG_ANY,
+			   "<== wt_modrdn: wt_dn2entry failed (%d)\n",
 			   rc, 0, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
@@ -181,14 +185,15 @@ wt_modrdn( Operation *op, SlapReply *rs )
 
 	if ( !rc ) {
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
-		Debug( LDAP_DEBUG_TRACE, WT_FUNC ": no access to parent\n",
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modrdn: no access to parent\n",
 			   0, 0, 0 );
 		rs->sr_text = "no write access to old parent's children";
 		goto return_results;
 	}
 
-	Debug( LDAP_DEBUG_TRACE, WT_FUNC
-		   ": wr to children of entry %s OK\n", p_ndn.bv_val, 0, 0 );
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_modrdn: wr to children of entry %s OK\n", p_ndn.bv_val, 0, 0 );
 
 	if ( p_ndn.bv_val == slap_empty_bv.bv_val ) {
 		p_dn = slap_empty_bv;
@@ -196,28 +201,119 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		dnParent( &e->e_name, &p_dn );
 	}
 
-	Debug( LDAP_DEBUG_TRACE, WT_FUNC ": parent dn=%s\n",
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_modrdn: parent dn=%s\n",
 		   p_dn.bv_val, 0, 0 );
 
 	new_parent_dn = &p_dn;	/* New Parent unless newSuperior given */
 	if ( op->oq_modrdn.rs_newSup != NULL ) {
-		Debug( LDAP_DEBUG_TRACE, WT_FUNC ": new parent \"%s\" requested...\n",
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modrdn: new parent \"%s\" requested...\n",
 			   op->oq_modrdn.rs_newSup->bv_val, 0, 0 );
 
 		/* newSuperior == oldParent? */
 		if( dn_match( &p_ndn, op->oq_modrdn.rs_nnewSup ) ) {
-			Debug( LDAP_DEBUG_TRACE, WT_FUNC
-				   ": new parent \"%s\" same as the old parent \"%s\"\n",
+			Debug( LDAP_DEBUG_TRACE,
+				   "wt_modrdn: new parent \"%s\" same as the old parent \"%s\"\n",
 				   op->oq_modrdn.rs_newSup->bv_val, p_dn.bv_val, 0 );
 			op->oq_modrdn.rs_newSup = NULL; /* ignore newSuperior */
 		}
 	}
 
-	/* Build target dn and make sure target entry doesn't exist already. */
-	build_new_dn( &new_dn, new_parent_dn, &op->oq_modrdn.rs_newrdn, NULL );
-	dnNormalize( 0, NULL, NULL, &new_dn, &new_ndn, op->o_tmpmemctx );
+	if ( op->oq_modrdn.rs_newSup != NULL ) {
+		if ( op->oq_modrdn.rs_newSup->bv_len ) {
+			np_dn = op->oq_modrdn.rs_newSup;
+			np_ndn = op->oq_modrdn.rs_nnewSup;
 
-	Debug( LDAP_DEBUG_TRACE, WT_FUNC ": new ndn=%s\n", new_ndn.bv_val, 0, 0 );
+			/* newSuperior == oldParent? - checked above */
+			/* newSuperior == entry being moved?, if so ==> ERROR */
+			if ( dnIsSuffix( np_ndn, &e->e_nname )) {
+				rs->sr_err = LDAP_NO_SUCH_OBJECT;
+				rs->sr_text = "new superior not found";
+				goto return_results;
+			}
+			/* Get Entry with dn=newSuperior. Does newSuperior exist? */
+			rc = wt_dn2entry(op->o_bd, wc, np_ndn, &np);
+			switch( rc ) {
+			case 0:
+				break;
+			case WT_NOTFOUND:
+				Debug( LDAP_DEBUG_ANY,
+					   "<== wt_modrdn: new superior not found: %s\n",
+					   np_ndn->bv_val, 0, 0 );
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "new superior not found";
+				goto return_results;
+			default:
+				Debug( LDAP_DEBUG_ANY,
+					   "<== wt_modrdn: wt_dn2entry failed %s (%d)\n",
+					   wiredtiger_strerror(rc), rc, 0 );
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "internal error";
+				goto return_results;
+			}
+			Debug( LDAP_DEBUG_TRACE,
+				   "wt_modrdn: wr to new parent OK np=%p, id=%ld\n",
+				   (void *) np, (long) np->e_id, 0 );
+			rs->sr_err = access_allowed( op, np, children,
+										 NULL, ACL_WADD, NULL );
+			if( ! rs->sr_err ) {
+				Debug( LDAP_DEBUG_TRACE,
+					   "wt_modrdn: no wr to newSup children\n",
+					   0, 0, 0 );
+				rs->sr_text = "no write access to new superior's children";
+				rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
+				goto return_results;
+			}
+			if ( is_entry_alias( np ) ) {
+				Debug( LDAP_DEBUG_TRACE,
+					   "wt_modrdn: entry is alias\n",
+					   0, 0, 0 );
+				rs->sr_text = "new superior is an alias";
+				rs->sr_err = LDAP_ALIAS_PROBLEM;
+				goto return_results;
+			}
+			if ( is_entry_referral( np ) ) {
+				/* parent is a referral, don't allow add */
+				Debug( LDAP_DEBUG_TRACE,
+					   "wt_modrdn: entry is referral\n",
+					   0, 0, 0 );
+				rs->sr_text = "new superior is a referral";
+				rs->sr_err = LDAP_OTHER;
+				goto return_results;
+			}
+		} else {
+			/* no parent, modrdn entry directly under root */
+			/* TODO: */
+			Debug( LDAP_DEBUG_TRACE,
+				   "wt_modrdn: no parent, not implement yet\n",
+				   0, 0, 0 );
+			rs->sr_text = "not implement yet";
+			rs->sr_err = LDAP_OTHER;
+			goto return_results;
+		}
+
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modrdn: wr to new parent's children OK\n",
+			   0, 0, 0 );
+		new_parent_dn = np_dn;
+	}
+
+	/* Build target dn and make sure target entry doesn't exist already. */
+	if (!new_dn.bv_val) {
+		build_new_dn( &new_dn, new_parent_dn, &op->oq_modrdn.rs_newrdn, NULL );
+	}
+
+	if (!new_ndn.bv_val) {
+		struct berval bv = {0, NULL};
+		dnNormalize( 0, NULL, NULL, &new_dn, &bv, op->o_tmpmemctx );
+		ber_dupbv( &new_ndn, &bv );
+		/* FIXME: why not call dnNormalize() w/o ctx? */
+		op->o_tmpfree( bv.bv_val, op->o_tmpmemctx );
+	}
+
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_modrdn: new ndn=%s\n", new_ndn.bv_val, 0, 0 );
 
 	/* check new entry */
 	rc = wt_dn2entry(op->o_bd, wc, &new_ndn, &ne);
@@ -233,8 +329,9 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	case WT_NOTFOUND:
 		break;
 	default:
-		Debug( LDAP_DEBUG_ANY, "<== " WT_FUNC ": wt_dn2entry failed (%d)\n",
-			   rc, 0, 0 );
+		Debug( LDAP_DEBUG_ANY,
+			   "<== wt_modrdn: wt_dn2entry failed %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
@@ -250,8 +347,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		if( slap_read_controls( op, rs, e,
 								&slap_pre_read_bv, preread_ctrl ) )
 		{
-			Debug( LDAP_DEBUG_TRACE, "<=- " WT_FUNC
-				   ": pre-read failed!\n", 0, 0, 0 );
+			Debug( LDAP_DEBUG_TRACE,
+				   "<== wt_modrdn: pre-read failed!\n", 0, 0, 0 );
 			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
@@ -263,21 +360,23 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	/* begin transaction */
 	rc = wc->session->begin_transaction(wc->session, NULL);
 	if( rc ) {
-		Debug( LDAP_DEBUG_TRACE, WT_FUNC
-			   ": begin_transaction failed: %s (%d)\n",
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modrdn: begin_transaction failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "begin_transaction failed";
 		goto return_results;
 	}
 	wc->is_begin_transaction = 1;
-	Debug( LDAP_DEBUG_TRACE, WT_FUNC ": session id: %p\n",
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_modrdn: session id: %p\n",
 		   wc->session, 0, 0 );
 
 	/* delete old DN */
 	rc = wt_dn2id_delete( op, wc, &e->e_nname);
 	if ( rc ) {
-		Debug(LDAP_DEBUG_TRACE, "<== " WT_FUNC ": delete failed: %s (%d)\n",
+		Debug(LDAP_DEBUG_TRACE,
+			  "<== wt_modrdn: delete failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "dn2id delete failed";
@@ -293,8 +392,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	/* add new DN */
 	rc = wt_dn2id_add( op, wc, p->e_id, &dummy );
 	if ( rc ) {
-		Debug(LDAP_DEBUG_TRACE, "<=- " WT_FUNC
-			  ": add failed: %s (%d)\n",
+		Debug(LDAP_DEBUG_TRACE,
+			  "<== wt_modrdn: add failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "DN add failed";
@@ -305,8 +404,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	rc = wt_modify_internal( op, wc, op->orm_modlist,
 							 &dummy, &rs->sr_text, textbuf, textlen );
 	if( rc != LDAP_SUCCESS ) {
-		Debug(LDAP_DEBUG_TRACE, "<=- " WT_FUNC
-			  ": modify failed: %s (%d)\n",
+		Debug(LDAP_DEBUG_TRACE,
+			  "<== wt_modrdn: modify failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
 		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
 		goto return_results;
@@ -315,8 +414,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	/* update entry */
 	rc = wt_id2entry_update( op, wc, &dummy );
 	if ( rc != 0 ) {
-		Debug( LDAP_DEBUG_TRACE, WT_FUNC
-			   ": id2entry update failed(%d)\n",
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modrdn: id2entry update failed(%d)\n",
 			   rc, 0, 0 );
 		if ( rc == LDAP_ADMINLIMIT_EXCEEDED ) {
 			rs->sr_text = "entry too big";
@@ -340,8 +439,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		if( slap_read_controls( op, rs, &dummy,
 								&slap_post_read_bv, postread_ctrl ) )
 		{
-			Debug( LDAP_DEBUG_TRACE, "<=- " WT_FUNC
-				   ": post-read failed!\n", 0, 0, 0 );
+			Debug( LDAP_DEBUG_TRACE,
+				   "<== wt_modrdn: post-read failed!\n", 0, 0, 0 );
 			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
@@ -358,16 +457,16 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	rc = wc->session->commit_transaction(wc->session, NULL);
 	wc->is_begin_transaction = 0;
 	if( rc ) {
-		Debug( LDAP_DEBUG_TRACE, "<== " WT_FUNC
-			   ": commit failed: %s (%d)\n",
+		Debug( LDAP_DEBUG_TRACE,
+			   "<== wt_modrdn: commit failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "commit failed";
 		goto return_results;
 	}
 
-	Debug(LDAP_DEBUG_TRACE, WT_FUNC
-		  ": rdn modified%s id=%08lx dn=\"%s\"\n",
+	Debug(LDAP_DEBUG_TRACE,
+		  "wt_modrdn: rdn modified%s id=%08lx dn=\"%s\"\n",
 		  op->o_noop ? " (no-op)" : "",
 		  dummy.e_id, op->o_req_dn.bv_val );
 
@@ -387,7 +486,7 @@ return_results:
 
 done:
 	if( wc && wc->is_begin_transaction ){
-		Debug( LDAP_DEBUG_TRACE, WT_FUNC ": rollback transaction\n",
+		Debug( LDAP_DEBUG_TRACE, "wt_modrdn: rollback transaction\n",
 			   0, 0, 0 );
 		wc->session->rollback_transaction(wc->session, NULL);
 		wc->is_begin_transaction = 0;
@@ -409,6 +508,10 @@ done:
 	/* free new entry */
 	if( ne != NULL ) {
 		wt_entry_return( ne );
+	}
+	/* free new parent entry */
+	if( np != NULL ) {
+		wt_entry_return( np );
 	}
 
 	if( preread_ctrl != NULL && (*preread_ctrl) != NULL ) {
