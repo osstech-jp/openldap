@@ -46,6 +46,11 @@ wt_ctx_init(struct wt_info *wi)
 		return NULL;
 	}
 
+	/* readonly mode */
+	if (!wi->wi_cache) {
+		return wc;
+	}
+
 	rc = wi->wi_cache->open_session(wi->wi_cache, NULL, NULL, &wc->cache_session);
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
