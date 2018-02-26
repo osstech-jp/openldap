@@ -91,7 +91,6 @@ wt_delete( Operation *op, SlapReply *rs )
 	case WT_NOTFOUND:
 		break;
 	default:
-		/* TODO: error handling */
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		Debug( LDAP_DEBUG_ANY,
@@ -102,14 +101,32 @@ wt_delete( Operation *op, SlapReply *rs )
 
 	if ( rc == WT_NOTFOUND && pdn.bv_len != 0 ) {
 		Debug( LDAP_DEBUG_ARGS,
-			   "<== wt_delete: no such object %s\n",
+			   "<== wt_delete: parent not found %s\n",
+			   op->o_req_dn.bv_val, 0, 0);
+		rc = wt_dn2aentry(op->o_bd, wc, &op->o_req_ndn, &e);
+		Debug( LDAP_DEBUG_ARGS,
+			   "<== wt_delete: rc=%d\n",
 			   op->o_req_dn.bv_val, 0, 0);
 
-		if ( p && !BER_BVISEMPTY( &p->e_name )) {
-			rs->sr_matched = ch_strdup( p->e_name.bv_val );
-			if ( is_entry_referral( p )) {
-				BerVarray ref = get_entry_referrals( op, p );
-				rs->sr_ref = referral_rewrite( ref, &p->e_name,
+		switch( rc ) {
+		case 0:
+			break;
+		case WT_NOTFOUND:
+			rs->sr_err = LDAP_NO_SUCH_OBJECT;
+			goto return_results;
+		default:
+			Debug( LDAP_DEBUG_ANY, "wt_delete: wt_dn2aentry failed (%d)\n",
+				   rc, 0, 0 );
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "internal error";
+			goto return_results;
+		}
+
+		if ( e && !BER_BVISEMPTY( &e->e_name )) {
+			rs->sr_matched = ch_strdup( e->e_name.bv_val );
+			if ( is_entry_referral( e )) {
+				BerVarray ref = get_entry_referrals( op, e );
+				rs->sr_ref = referral_rewrite( ref, &e->e_name,
 											   &op->o_req_dn, LDAP_SCOPE_DEFAULT );
 				ber_bvarray_free( ref );
 			} else {
@@ -131,14 +148,8 @@ wt_delete( Operation *op, SlapReply *rs )
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ARGS,
-			   "<== wt_delete: no such object %s\n",
-			   op->o_req_dn.bv_val, 0, 0);
-		rs->sr_err = LDAP_REFERRAL;
-		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
-		goto return_results;
+		break;
 	default:
-		/* TODO: error handling */
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		Debug( LDAP_DEBUG_ANY,
@@ -148,10 +159,27 @@ wt_delete( Operation *op, SlapReply *rs )
 	}
 
 	/* FIXME : dn2entry() should return non-glue entry */
-	if ( !manageDSAit && is_entry_glue( e ) ) {
-		Debug( LDAP_DEBUG_ARGS,
-			   "<== wt_delete: glue entry %s\n",
-			   op->o_req_dn.bv_val, 0, 0);
+	if (rc == WT_NOTFOUND ||
+		!manageDSAit && e && is_entry_glue( e ) ) {
+		if ( !e ) {
+			Debug( LDAP_DEBUG_ARGS,
+				   "<== wt_delete: no such object %s\n",
+				   op->o_req_dn.bv_val, 0, 0);
+			rc = wt_dn2aentry(op->o_bd, wc, &op->o_req_ndn, &e);
+			switch( rc ) {
+			case 0:
+				break;
+			case WT_NOTFOUND:
+				rs->sr_err = LDAP_NO_SUCH_OBJECT;
+				goto return_results;
+			default:
+				Debug( LDAP_DEBUG_ANY, "wt_delete: wt_dn2aentry failed (%d)\n",
+					   rc, 0, 0 );
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "internal error";
+				goto return_results;
+			}
+		}
 
 		rs->sr_matched = ch_strdup( e->e_dn );
 		if ( is_entry_referral( e )) {

@@ -76,26 +76,115 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		return rs->sr_err;
 	}
 
-	/* get entry */
-	rc = wt_dn2entry(op->o_bd, wc, &op->o_req_ndn, &e);
-    switch( rc ) {
+	/* get parent entry */
+	if ( be_issuffix( op->o_bd, &op->o_req_ndn ) ) {
+		rs->sr_err = LDAP_NAMING_VIOLATION;
+		rs->sr_text = "cannot rename suffix entry";
+		goto return_results;
+	} else {
+		dnParent( &op->o_req_ndn, &p_ndn );
+	}
+
+	rc = wt_dn2entry(op->o_bd, wc, &p_ndn, &p);
+	switch( rc ) {
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ARGS, "<== wt_modrdn: no such object %s\n",
-			   op->o_req_dn.bv_val, 0, 0);
-		/* TODO: lookup referrals */
+		Debug( LDAP_DEBUG_ARGS,
+			   "<== wt_modrdn: parent does not exist %s\n",
+			   p_ndn.bv_val, 0, 0);
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		goto return_results;
 	default:
-		Debug( LDAP_DEBUG_ANY, "<== wt_modrdn: wt_dn2entry failed (%d)\n",
+		Debug( LDAP_DEBUG_ANY,
+			   "<== wt_modrdn: wt_dn2entry failed (%d)\n",
 			   rc, 0, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
 
-	/* TODO: glue entry handling */
+	/* check parent for "children" acl */
+	rc = access_allowed( op, p, children, NULL,
+						 op->oq_modrdn.rs_newSup == NULL ?
+						 ACL_WRITE : ACL_WDEL, NULL );
+
+	if ( !rc ) {
+		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modrdn: no access to parent\n",
+			   0, 0, 0 );
+		rs->sr_text = "no write access to old parent's children";
+		goto return_results;
+	}
+
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_modrdn: wr to children of entry %s OK\n", p_ndn.bv_val, 0, 0 );
+
+	if ( p_ndn.bv_val == slap_empty_bv.bv_val ) {
+		p_dn = slap_empty_bv;
+	} else {
+		dnParent( &op->o_req_dn, &p_dn );
+	}
+
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_modrdn: parent dn=%s\n",
+		   p_dn.bv_val, 0, 0 );
+
+	/* get entry */
+	rc = wt_dn2entry(op->o_bd, wc, &op->o_req_ndn, &e);
+	switch( rc ) {
+	case 0:
+		break;
+	case WT_NOTFOUND:
+		break;
+	default:
+		Debug( LDAP_DEBUG_ANY,
+			   "<== wt_modrdn: wt_dn2entry failed (%d)\n",
+			   rc, 0, 0 );
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "internal error";
+		goto return_results;
+	}
+
+	if ( rc == WT_NOTFOUND ||
+		 ( !manageDSAit && e && is_entry_glue( e ) )) {
+
+		if ( !e ) {
+			Debug( LDAP_DEBUG_ARGS,
+				   "<== wt_modrdn: no such object %s\n",
+				   op->o_req_dn.bv_val, 0, 0);
+			rc = wt_dn2aentry(op->o_bd, wc, &op->o_req_ndn, &e);
+			switch( rc ) {
+			case 0:
+				break;
+			case WT_NOTFOUND:
+				rs->sr_err = LDAP_NO_SUCH_OBJECT;
+				goto return_results;
+			default:
+				Debug( LDAP_DEBUG_ANY, "wt_modrdn: wt_dn2aentry failed (%d)\n",
+					   rc, 0, 0 );
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "internal error";
+				goto return_results;
+			}
+		}
+
+		rs->sr_matched = ch_strdup( e->e_dn );
+
+		if ( is_entry_referral( e ) ) {
+			BerVarray ref = get_entry_referrals( op, e );
+			rs->sr_ref = referral_rewrite( ref, &e->e_name,
+										   &op->o_req_dn, LDAP_SCOPE_DEFAULT );
+			ber_bvarray_free( ref );
+		} else {
+			rs->sr_ref = NULL;
+		}
+		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
+		rs->sr_err = LDAP_REFERRAL;
+		send_ldap_result( op, rs );
+		goto done;
+	}
 
 	if ( get_assert( op ) &&
 		 ( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
@@ -107,8 +196,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	/* check write on old entry */
 	rc = access_allowed( op, e, entry, NULL, ACL_WRITE, NULL );
 	if ( !rc ) {
-		Debug( LDAP_DEBUG_TRACE, "wt_modrdn: no access to entry\n", 0,
-			   0, 0 );
+		Debug( LDAP_DEBUG_TRACE, "wt_modrdn: no access to entry\n",
+			   0, 0, 0 );
 		rs->sr_text = "no write access to old entry";
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		goto return_results;
@@ -150,62 +239,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		rs->sr_matched = NULL;
 		goto done;
 	}
-
-	if ( be_issuffix( op->o_bd, &e->e_nname ) ) {
-		rs->sr_err = LDAP_NAMING_VIOLATION;
-		rs->sr_text = "cannot rename suffix entry";
-		goto return_results;
-	} else {
-		dnParent( &e->e_nname, &p_ndn );
-	}
-
-	/* get entry */
-	rc = wt_dn2entry(op->o_bd, wc, &p_ndn, &p);
-    switch( rc ) {
-	case 0:
-		break;
-	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ARGS,
-			   "<== wt_modrdn: parent does not exist %s\n",
-			   p_ndn.bv_val, 0, 0);
-		rs->sr_err = LDAP_NO_SUCH_OBJECT;
-		goto return_results;
-	default:
-		Debug( LDAP_DEBUG_ANY,
-			   "<== wt_modrdn: wt_dn2entry failed (%d)\n",
-			   rc, 0, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "internal error";
-		goto return_results;
-	}
-
-	/* check parent for "children" acl */
-	rc = access_allowed( op, p, children, NULL,
-						 op->oq_modrdn.rs_newSup == NULL ?
-						 ACL_WRITE : ACL_WDEL, NULL );
-
-	if ( !rc ) {
-		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
-		Debug( LDAP_DEBUG_TRACE,
-			   "wt_modrdn: no access to parent\n",
-			   0, 0, 0 );
-		rs->sr_text = "no write access to old parent's children";
-		goto return_results;
-	}
-
-	Debug( LDAP_DEBUG_TRACE,
-		   "wt_modrdn: wr to children of entry %s OK\n", p_ndn.bv_val, 0, 0 );
-
-	if ( p_ndn.bv_val == slap_empty_bv.bv_val ) {
-		p_dn = slap_empty_bv;
-	} else {
-		dnParent( &e->e_name, &p_dn );
-	}
-
-	Debug( LDAP_DEBUG_TRACE,
-		   "wt_modrdn: parent dn=%s\n",
-		   p_dn.bv_val, 0, 0 );
-
+	
 	new_parent_dn = &p_dn;	/* New Parent unless newSuperior given */
 	if ( op->oq_modrdn.rs_newSup != NULL ) {
 		Debug( LDAP_DEBUG_TRACE,
