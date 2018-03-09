@@ -706,24 +706,24 @@ loop_begin:
 				rs->sr_attrs = NULL;
 				rs->sr_entry = NULL;
 				e = NULL;
-			}
-			switch ( rs->sr_err ) {
-			case LDAP_SUCCESS:  /* entry sent ok */
-				break;
-			case LDAP_UNAVAILABLE:
-				rs->sr_err = LDAP_OTHER;
-				goto done;
-			case LDAP_SIZELIMIT_EXCEEDED:
-				rs->sr_ref = rs->sr_v2ref;
-				send_ldap_result( op, rs );
-				rs->sr_err = LDAP_SUCCESS;
-				goto done;
-			default:
-				Debug( LDAP_DEBUG_ANY,
-					   "wt_search: unexpected error: err=%d, id=%ld\n",
-					   rs->sr_err, (long) id, 0);
-				rs->sr_err = LDAP_OTHER;
-				break;
+
+				switch ( rs->sr_err ) {
+				case LDAP_SUCCESS:  /* entry sent ok */
+					break;
+				default: /* entry not sent */
+					break;
+				case LDAP_BUSY:
+					send_ldap_result( op, rs );
+					goto done;
+				case LDAP_UNAVAILABLE:
+					rs->sr_err = LDAP_OTHER;
+					goto done;
+				case LDAP_SIZELIMIT_EXCEEDED:
+					rs->sr_ref = rs->sr_v2ref;
+					send_ldap_result( op, rs );
+					rs->sr_err = LDAP_SUCCESS;
+					goto done;
+				}
 			}
 		} else {
 			Debug( LDAP_DEBUG_TRACE,
