@@ -35,6 +35,7 @@ enum {
 	WT_DIRECTORY = 1,
 	WT_CONFIG,
 	WT_INDEX,
+	WT_MODE,
 };
 
 static ConfigTable wtcfg[] = {
@@ -53,6 +54,10 @@ static ConfigTable wtcfg[] = {
 	  "DESC 'Attribute index parameters' "
 	  "EQUALITY caseIgnoreMatch "
 	  "SYNTAX OMsDirectoryString )", NULL, NULL },
+	{ "mode", "mode", 2, 2, 0, ARG_MAGIC|WT_MODE,
+	  wt_cf_gen, "( OLcfgDbAt:0.3 NAME 'olcDbMode' "
+	  "DESC 'Unix permissions of database files' "
+	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED,
 		NULL, NULL, NULL, NULL }
 };
@@ -63,7 +68,7 @@ static ConfigOCs wtocs[] = {
 	  "DESC 'Wt backend ocnfiguration' "
 	  "SUP olcDatabaseConfig "
 	  "MUST olcDbDirectory "
-	  "MAY ( olcWtConfig $ olcDbIndex ) )",
+	  "MAY ( olcWtConfig $ olcDbIndex $ olcDbMode ) )",
 	  Cft_Database, wtcfg },
 	{ NULL, 0, NULL }
 };
