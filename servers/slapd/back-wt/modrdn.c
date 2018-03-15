@@ -425,7 +425,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	dummy.e_attrs = NULL;
 
 	/* add new DN */
-	rc = wt_dn2id_add( op, wc, p->e_id, &dummy );
+	rc = wt_dn2id_add( op, wc, np?np->e_id:p->e_id, &dummy );
 	if ( rc ) {
 		Debug(LDAP_DEBUG_TRACE,
 			  "<== wt_modrdn: add failed: %s (%d)\n",
