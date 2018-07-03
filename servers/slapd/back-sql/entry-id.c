@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2017 The OpenLDAP Foundation.
+ * Copyright 1999-2018 The OpenLDAP Foundation.
  * Portions Copyright 1999 Dmitry Kovalev.
  * Portions Copyright 2002 Pierangelo Masarati.
  * Portions Copyright 2004 Mark Adamson.
@@ -998,7 +998,7 @@ backsql_id2entry( backsql_srch_info *bsi, backsql_entryID *eid )
 			if ( rc != 0 || vat == NULL ) {
 				Debug( LDAP_DEBUG_TRACE, "backsql_id2entry(): "
 						"attribute \"%s\" is not defined "
-						"for objectlass \"%s\"\n",
+						"for objectclass \"%s\"\n",
 						an->an_name.bv_val, 
 						BACKSQL_OC_NAME( bsi->bsi_oc ), 0 );
 				continue;

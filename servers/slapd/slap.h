@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,17 +58,19 @@
 
 LDAP_BEGIN_DECL
 
+#ifdef LDAP_DEVEL
 #define LDAP_COLLECTIVE_ATTRIBUTES
 #define LDAP_COMP_MATCH
 #define LDAP_SYNC_TIMESTAMP
 #define SLAP_CONTROL_X_WHATFAILED
 #define SLAP_CONTROL_X_LAZY_COMMIT
 #define SLAP_CONFIG_DELETE
-#define SLAP_AUXPROP_DONTUSECOPY
 #ifndef SLAP_SCHEMA_EXPOSE
 #define SLAP_SCHEMA_EXPOSE
 #endif
+#endif
 
+#define SLAP_AUXPROP_DONTUSECOPY
 #define LDAP_DYNAMIC_OBJECTS
 #define SLAP_CONTROL_X_TREE_DELETE LDAP_CONTROL_X_TREE_DELETE
 #define SLAP_CONTROL_X_SESSION_TRACKING
@@ -154,6 +156,9 @@ LDAP_BEGIN_DECL
 
 /* unknown config file directive */
 #define SLAP_CONF_UNKNOWN (-1026)
+
+/* pseudo error code indicating async operation */
+#define SLAPD_ASYNCOP (-1027)
 
 /* We assume "C" locale, that is US-ASCII */
 #define ASCII_SPACE(c)	( (c) == ' ' )
@@ -2241,7 +2246,7 @@ struct BackendInfo {
 	 *		bi_close() is called from backend_shutdown()
 	 * bi_destroy: called to destroy each database, called
 	 *		once during shutdown after all bi_db_destroy calls.
-	 *		bi_destory() is called from backend_destroy()
+	 *		bi_destroy() is called from backend_destroy()
 	 */
 	BI_init	*bi_init;
 	BI_config	*bi_config;
@@ -2267,8 +2272,8 @@ struct BackendInfo {
 	 *  called only by backend_shutdown()
 	 * bi_db_destroy: called to destroy each database
 	 *  called once per database during shutdown AFTER all
-	 *  bi_close calls but before bi_destory calls.
-	 *  called only by backend_destory()
+	 *  bi_close calls but before bi_destroy calls.
+	 *  called only by backend_destroy()
 	 */
 	BI_db_init	*bi_db_init;
 	BI_db_config	*bi_db_config;
@@ -2291,7 +2296,7 @@ struct BackendInfo {
 	BI_op_extended	*bi_extended;
 	BI_op_cancel	*bi_op_cancel;
 
-	/* Auxilary Functions */
+	/* Auxiliary Functions */
 	BI_operational		*bi_operational;
 	BI_chk_referrals	*bi_chk_referrals;
 	BI_chk_controls		*bi_chk_controls;
@@ -2458,10 +2463,9 @@ typedef struct PagedResultsState {
 } PagedResultsState;
 
 struct slap_csn_entry {
+	Operation *ce_op;
 	struct berval ce_csn;
 	int ce_sid;
-	unsigned long ce_opid;
-	unsigned long ce_connid;
 #define SLAP_CSN_PENDING	1
 #define SLAP_CSN_COMMIT		2
 	long ce_state;

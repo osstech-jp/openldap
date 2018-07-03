@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2017 The OpenLDAP Foundation.
+ * Copyright 1999-2018 The OpenLDAP Foundation.
  * Portions Copyright 1999 John C. Quillan.
  * Portions Copyright 2002 myinternet Limited.
  * All rights reserved.
@@ -77,7 +77,7 @@ perl_back_initialize(
 	bi->bi_connection_init = 0;
 	bi->bi_connection_destroy = 0;
 
-	/* injecting code from perl_back_open, because using fonction reference  (bi->bi_open) is not functional */
+	/* injecting code from perl_back_open, because using function reference  (bi->bi_open) is not functional */
 	Debug( LDAP_DEBUG_TRACE, "perl backend open\n", 0, 0, 0 );
 
 	if( PERL_INTERPRETER != NULL ) {

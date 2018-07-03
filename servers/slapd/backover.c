@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2017 The OpenLDAP Foundation.
+ * Copyright 2003-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -327,7 +327,9 @@ over_access_allowed(
 	}
 
 	op->o_bd = be;
-	op->o_bd->bd_info = bi;
+	if ( SLAP_ISOVERLAY( op->o_bd ) ) {
+		op->o_bd->bd_info = bi;
+	}
 
 	return rc;
 }
@@ -383,7 +385,9 @@ overlay_entry_get_ov(
 	}
 
 	op->o_bd = be;
-	op->o_bd->bd_info = bi;
+	if ( SLAP_ISOVERLAY( op->o_bd ) ) {
+		op->o_bd->bd_info = bi;
+	}
 
 	return rc;
 }
@@ -455,7 +459,9 @@ overlay_entry_release_ov(
 	}
 
 	op->o_bd = be;
-	op->o_bd->bd_info = bi;
+	if ( SLAP_ISOVERLAY( op->o_bd ) ) {
+		op->o_bd->bd_info = bi;
+	}
 
 	return rc;
 }
@@ -543,7 +549,9 @@ over_acl_group(
 	}
 
 	op->o_bd = be;
-	op->o_bd->bd_info = bi;
+	if ( SLAP_ISOVERLAY( op->o_bd ) ) {
+		op->o_bd->bd_info = bi;
+	}
 
 	return rc;
 }
@@ -614,7 +622,9 @@ over_acl_attribute(
 	}
 
 	op->o_bd = be;
-	op->o_bd->bd_info = bi;
+	if ( SLAP_ISOVERLAY( op->o_bd ) ) {
+		op->o_bd->bd_info = bi;
+	}
 
 	return rc;
 }
@@ -728,7 +738,7 @@ over_op_func(
 	slap_overinst *on;
 	BackendDB *be = op->o_bd, db;
 	slap_callback **sc;
-	slap_callback *cb = (slap_callback *) ch_malloc( sizeof( slap_callback ));
+	slap_callback *cb;
 	int rc = SLAP_CB_CONTINUE;
 
 	/* FIXME: used to happen for instance during abandon
@@ -743,19 +753,24 @@ over_op_func(
 		db.be_flags |= SLAP_DBFLAG_OVERLAY;
 		op->o_bd = &db;
 	}
-	cb->sc_cleanup = NULL;
-	cb->sc_response = over_back_response;
-	cb->sc_writewait = NULL;
-	cb->sc_next = op->o_callback;
-	cb->sc_private = oi;
-	op->o_callback = cb;
+	if ( op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_UNBIND ) {
+		cb = (slap_callback *)op->o_tmpcalloc( 1, sizeof(slap_callback), op->o_tmpmemctx );
+		cb->sc_cleanup = NULL;
+		cb->sc_response = over_back_response;
+		cb->sc_writewait = NULL;
+		cb->sc_next = op->o_callback;
+		cb->sc_private = oi;
+		op->o_callback = cb;
+	}
 
 	rc = overlay_op_walk( op, rs, which, oi, on );
-	for ( sc = &op->o_callback; *sc; sc = &(*sc)->sc_next ) {
-		if ( *sc == cb ) {
-			*sc = cb->sc_next;
-			ch_free( cb );
-			break;
+	if ( rc != SLAPD_ASYNCOP && op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_UNBIND ) {
+		for ( sc = &op->o_callback; *sc; sc = &(*sc)->sc_next ) {
+			if ( *sc == cb ) {
+				*sc = cb->sc_next;
+				op->o_tmpfree( cb, op->o_tmpmemctx );
+				break;
+			}
 		}
 	}
 
@@ -1109,7 +1124,7 @@ overlay_register_control( BackendDB *be, const char *oid )
 				gotit = 1;
 			}
 
-			/* overlays can be instanciated multiple times, use
+			/* overlays can be instantiated multiple times, use
 			 * be_ctrls[ cid ] as an instance counter, so that the
 			 * overlay's controls are only really disabled after the
 			 * last instance called overlay_register_control() */
@@ -1120,7 +1135,7 @@ overlay_register_control( BackendDB *be, const char *oid )
 	}
 	
 	if ( !gotit ) {
-		/* overlays can be instanciated multiple times, use
+		/* overlays can be instantiated multiple times, use
 		 * be_ctrls[ cid ] as an instance counter, so that the
 		 * overlay's controls are only really unregistered after the
 		 * last instance called overlay_register_control() */

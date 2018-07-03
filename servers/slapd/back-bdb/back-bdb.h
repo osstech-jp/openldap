@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2017 The OpenLDAP Foundation.
+ * Copyright 2000-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,7 +158,9 @@ struct bdb_db_pgsize {
 	int	bdp_size;
 };
 
+#ifdef LDAP_DEVEL
 #define BDB_MONITOR_IDX
+#endif
 
 typedef struct bdb_monitor_t {
 	void		*bdm_cb;

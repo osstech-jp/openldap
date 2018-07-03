@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2001-2017 The OpenLDAP Foundation.
+ * Copyright 2001-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -927,7 +927,7 @@ int slapi_over_config( BackendDB *be, ConfigReply *cr )
 	if ( slapi_over_initialized == 0 ) {
 		int rc;
 
-		/* do global initializaiton */
+		/* do global initialization */
 		ldap_pvt_thread_mutex_init( &slapi_hn_mutex );
 		ldap_pvt_thread_mutex_init( &slapi_time_mutex );
 		ldap_pvt_thread_mutex_init( &slapi_printmessage_mutex );

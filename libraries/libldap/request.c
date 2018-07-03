@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -315,6 +315,7 @@ ldap_send_server_request(
 		LDAP_MUTEX_UNLOCK( &ld->ld_options.ldo_mutex );
 		if ( rc == -1 ) {
 			ld->ld_errno = LDAP_ENCODING_ERROR;
+			ber_free( ber, 1 );
 			LDAP_CONN_UNLOCK_IF(m_noconn);
 			return rc;
 		}
@@ -334,6 +335,7 @@ ldap_send_server_request(
 		rc = -1;
 	}
 	if ( rc ) {
+		ber_free( ber, 1 );
 		LDAP_CONN_UNLOCK_IF(m_noconn);
 		return rc;
 	}
@@ -1071,7 +1073,7 @@ static int ldap_int_nextref(
  *              The array will be free'd by this function when no longer needed
  *  (IN) sref != 0 if following search reference
  *  (OUT) errstrp = Place to return a string of referrals which could not be followed
- *  (OUT) hadrefp = 1 if sucessfully followed referral
+ *  (OUT) hadrefp = 1 if successfully followed referral
  *
  * Return value - number of referrals followed
  *

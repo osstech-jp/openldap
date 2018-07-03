@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
 
 #include "ldap-int.h"
 #include "ldap_schema.h"
+#include "ldif.h"
 
 /* extension to UFN that turns trailing "dc=value" rdns in DNS style,
  * e.g. "ou=People,dc=openldap,dc=org" => "People, openldap.org" */
@@ -2478,6 +2479,11 @@ dn2domain( LDAPDN dn, struct berval *bv, int pos, int *iRDN )
 			break;
 		}
 
+		if ( ldif_is_not_printable( ava->la_value.bv_val, ava->la_value.bv_len ) ) {
+			domain = 0;
+			break;
+		}
+
 		domain = 1;
 		
 		if ( first ) {
@@ -3198,7 +3204,7 @@ int ldap_dn2bv_x( LDAPDN dn, struct berval *bv, unsigned flags, void *ctx )
 		 * Sort of UFN for DCE DNs: a slash ('/') separated
 		 * global->local DN with no types; strictly speaking,
 		 * the naming context should be a domain, which is
-		 * written in DNS-style, e.g. dot-deparated.
+		 * written in DNS-style, e.g. dot-separated.
 		 * 
 		 * Example:
 		 * 

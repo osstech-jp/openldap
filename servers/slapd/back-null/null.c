@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2002-2017 The OpenLDAP Foundation.
+ * Copyright 2002-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ static ConfigTable nullcfg[] = {
 static ConfigOCs nullocs[] = {
 	{ "( OLcfgDbOc:8.1 "
 		"NAME 'olcNullConfig' "
-		"DESC 'Null backend ocnfiguration' "
+		"DESC 'Null backend configuration' "
 		"SUP olcDatabaseConfig "
 		"MAY ( olcDbBindAllowed $ olcDbDoSearch ) )",
 		Cft_Database, nullcfg },

@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2001-2017 The OpenLDAP Foundation.
+ * Copyright 2001-2018 The OpenLDAP Foundation.
  * Portions Copyright 2001-2003 Pierangelo Masarati.
  * All rights reserved.
  *
@@ -327,7 +327,7 @@ monitor_back_register_subsys_late(
 		return -1;
 	}
 
-	/* everyting is ready, can register already */
+	/* everything is ready, can register already */
 	if ( monitor_subsys_is_opened() ) {
 		return monitor_back_register_subsys( ms );
 	}

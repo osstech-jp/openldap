@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -145,6 +145,34 @@ int
 ldap_pvt_thread_mutex_trylock( ldap_pvt_thread_mutex_t *mutex )
 {
 	return mutex_try_lock( mutex );
+}
+
+int ldap_pvt_thread_mutex_recursive_init( ldap_pvt_thread_mutex_recursive_t *mutex )
+{
+	return ldap_pvt_thread_rmutex_init( mutex );
+}
+
+int ldap_pvt_thread_mutex_recursive_destroy( ldap_pvt_thread_mutex_recursive_t *mutex )
+{
+	return ldap_pvt_thread_rmutex_destroy( mutex );
+}
+
+int
+ldap_pvt_thread_mutex_recursive_lock( ldap_pvt_thread_mutex_recursive_t *mutex )
+{
+	return ldap_pvt_thread_rmutex_lock( mutex, ldap_pvt_thread_self() );
+}
+
+int
+ldap_pvt_thread_mutex_recursive_unlock( ldap_pvt_thread_mutex_recursive_t *mutex )
+{
+	return ldap_pvt_thread_rmutex_unlock( mutex, ldap_pvt_thread_self() );
+}
+
+int
+ldap_pvt_thread_mutex_recursive_trylock( ldap_pvt_thread_mutex_recursive_t *mp )
+{
+	return ldap_pvt_thread_rmutex_trylock( mp, ldap_pvt_thread_self() );
 }
 
 ldap_pvt_thread_t

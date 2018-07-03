@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2008-2017 The OpenLDAP Foundation.
+ * Copyright 2008-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,9 @@
 
 typedef SSL_CTX tlso_ctx;
 typedef SSL tlso_session;
+
+static BIO_METHOD * tlso_bio_method = NULL;
+static BIO_METHOD * tlso_bio_setup( void );
 
 static int  tlso_opt_trace = 1;
 
@@ -111,6 +114,43 @@ static void tlso_thr_init( void )
 #ifdef LDAP_R_COMPILE
 static void tlso_thr_init( void ) {}
 #endif
+#endif /* OpenSSL 1.1 */
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000
+/*
+ * OpenSSL 1.1 API and later makes the BIO method concrete types internal.
+ */
+
+static BIO_METHOD *
+BIO_meth_new( int type, const char *name )
+{
+	BIO_METHOD *method = LDAP_MALLOC( sizeof(BIO_METHOD) );
+	memset( method, 0, sizeof(BIO_METHOD) );
+
+	method->type = type;
+	method->name = name;
+
+	return method;
+}
+
+static void
+BIO_meth_free( BIO_METHOD *meth )
+{
+	if ( meth == NULL ) {
+		return;
+	}
+
+	LDAP_FREE( meth );
+}
+
+#define BIO_meth_set_write(m, f) (m)->bwrite = (f)
+#define BIO_meth_set_read(m, f) (m)->bread = (f)
+#define BIO_meth_set_puts(m, f) (m)->bputs = (f)
+#define BIO_meth_set_gets(m, f) (m)->bgets = (f)
+#define BIO_meth_set_ctrl(m, f) (m)->ctrl = (f)
+#define BIO_meth_set_create(m, f) (m)->create = (f)
+#define BIO_meth_set_destroy(m, f) (m)->destroy = (f)
+
 #endif /* OpenSSL 1.1 */
 
 static STACK_OF(X509_NAME) *
@@ -176,6 +216,8 @@ tlso_init( void )
 	/* FIXME: mod_ssl does this */
 	X509V3_add_standard_extensions();
 
+	tlso_bio_method = tlso_bio_setup();
+
 	return 0;
 }
 
@@ -186,6 +228,8 @@ static void
 tlso_destroy( void )
 {
 	struct ldapoptions *lo = LDAP_INT_GLOBAL_OPT();   
+
+	BIO_meth_free( tlso_bio_method );
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000
 	EVP_cleanup();
@@ -835,6 +879,77 @@ tlso_session_peercert( tls_session *sess, struct berval *der )
 	return 0;
 }
 
+static int
+tlso_session_pinning( LDAP *ld, tls_session *sess, char *hashalg, struct berval *hash )
+{
+	tlso_session *s = (tlso_session *)sess;
+	unsigned char *tmp, digest[EVP_MAX_MD_SIZE];
+	struct berval key,
+				  keyhash = { sizeof(digest), digest };
+	X509 *cert = SSL_get_peer_certificate(s);
+	int len, rc = LDAP_SUCCESS;
+
+	len = i2d_X509_PUBKEY( X509_get_X509_PUBKEY(cert), NULL );
+
+	key.bv_val = tmp = LDAP_MALLOC( len );
+	if ( !key.bv_val ) {
+		return -1;
+	}
+
+	key.bv_len = i2d_X509_PUBKEY( X509_get_X509_PUBKEY(cert), &tmp );
+
+	if ( hashalg ) {
+		const EVP_MD *md;
+		EVP_MD_CTX *mdctx;
+		unsigned int len = keyhash.bv_len;
+
+		md = EVP_get_digestbyname( hashalg );
+		if ( !md ) {
+			Debug( LDAP_DEBUG_TRACE, "tlso_session_pinning: "
+					"hash %s not recognised by OpenSSL\n", hashalg, 0, 0 );
+			rc = -1;
+			goto done;
+		}
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000
+		mdctx = EVP_MD_CTX_new();
+#else
+		mdctx = EVP_MD_CTX_create();
+#endif
+		if ( !mdctx ) {
+			rc = -1;
+			goto done;
+		}
+
+		EVP_DigestInit_ex( mdctx, md, NULL );
+		EVP_DigestUpdate( mdctx, key.bv_val, key.bv_len );
+		EVP_DigestFinal_ex( mdctx, (unsigned char *)keyhash.bv_val, &len );
+		keyhash.bv_len = len;
+#if OPENSSL_VERSION_NUMBER >= 0x10100000
+		EVP_MD_CTX_free( mdctx );
+#else
+		EVP_MD_CTX_destroy( mdctx );
+#endif
+	} else {
+		keyhash = key;
+	}
+
+	if ( ber_bvcmp( hash, &keyhash ) ) {
+		rc = LDAP_CONNECT_ERROR;
+		Debug( LDAP_DEBUG_ANY, "tlso_session_pinning: "
+				"public key hash does not match provided pin.\n", 0, 0, 0 );
+		if ( ld->ld_error ) {
+			LDAP_FREE( ld->ld_error );
+		}
+		ld->ld_error = LDAP_STRDUP(
+			_("TLS: public key hash does not match provided pin"));
+	}
+
+done:
+	LDAP_FREE( key.bv_val );
+	return rc;
+}
+
 /*
  * TLS support for LBER Sockbufs
  */
@@ -945,33 +1060,21 @@ tlso_bio_puts( BIO *b, const char *str )
 	return tlso_bio_write( b, str, strlen( str ) );
 }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000
-struct bio_method_st {
-    int type;
-    const char *name;
-    int (*bwrite) (BIO *, const char *, int);
-    int (*bread) (BIO *, char *, int);
-    int (*bputs) (BIO *, const char *);
-    int (*bgets) (BIO *, char *, int);
-    long (*ctrl) (BIO *, int, long, void *);
-    int (*create) (BIO *);
-    int (*destroy) (BIO *);
-    long (*callback_ctrl) (BIO *, int, bio_info_cb *);
-};
-#endif
-
-static BIO_METHOD tlso_bio_method =
+static BIO_METHOD *
+tlso_bio_setup( void )
 {
-	( 100 | 0x400 ),		/* it's a source/sink BIO */
-	"sockbuf glue",
-	tlso_bio_write,
-	tlso_bio_read,
-	tlso_bio_puts,
-	tlso_bio_gets,
-	tlso_bio_ctrl,
-	tlso_bio_create,
-	tlso_bio_destroy
-};
+	/* it's a source/sink BIO */
+	BIO_METHOD * method = BIO_meth_new( 100 | 0x400, "sockbuf glue" );
+	BIO_meth_set_write( method, tlso_bio_write );
+	BIO_meth_set_read( method, tlso_bio_read );
+	BIO_meth_set_puts( method, tlso_bio_puts );
+	BIO_meth_set_gets( method, tlso_bio_gets );
+	BIO_meth_set_ctrl( method, tlso_bio_ctrl );
+	BIO_meth_set_create( method, tlso_bio_create );
+	BIO_meth_set_destroy( method, tlso_bio_destroy );
+
+	return method;
+}
 
 static int
 tlso_sb_setup( Sockbuf_IO_Desc *sbiod, void *arg )
@@ -988,7 +1091,7 @@ tlso_sb_setup( Sockbuf_IO_Desc *sbiod, void *arg )
 	
 	p->session = arg;
 	p->sbiod = sbiod;
-	bio = BIO_new( &tlso_bio_method );
+	bio = BIO_new( tlso_bio_method );
 	BIO_set_data( bio, p );
 	SSL_set_bio( p->session, bio, bio );
 	sbiod->sbiod_pvt = p;
@@ -1196,7 +1299,7 @@ tlso_verify_cb( int ok, X509_STORE_CTX *ctx )
 	 */
 	subject = X509_get_subject_name( cert );
 	issuer = X509_get_issuer_name( cert );
-	/* X509_NAME_oneline, if passed a NULL buf, allocate memomry */
+	/* X509_NAME_oneline, if passed a NULL buf, allocate memory */
 	sname = X509_NAME_oneline( subject, NULL, 0 );
 	iname = X509_NAME_oneline( issuer, NULL, 0 );
 	if ( !ok ) certerr = (char *)X509_verify_cert_error_string( errnum );
@@ -1309,11 +1412,13 @@ tlso_seed_PRNG( const char *randfile )
 		 * The fact is that when $HOME is NULL, .rnd is used.
 		 */
 		randfile = RAND_file_name( buffer, sizeof( buffer ) );
-
-	} else if (RAND_egd(randfile) > 0) {
+	}
+#ifndef OPENSSL_NO_EGD
+	else if (RAND_egd(randfile) > 0) {
 		/* EGD socket */
 		return 0;
 	}
+#endif
 
 	if (randfile == NULL) {
 		Debug( LDAP_DEBUG_ANY,
@@ -1366,6 +1471,7 @@ tls_impl ldap_int_tls_impl = {
 	tlso_session_version,
 	tlso_session_cipher,
 	tlso_session_peercert,
+	tlso_session_pinning,
 
 	&tlso_sbio,
 

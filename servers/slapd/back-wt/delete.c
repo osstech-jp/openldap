@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2002-2017 The OpenLDAP Foundation.
+ * Copyright 2002-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -315,7 +315,7 @@ wt_delete( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	/* begen transaction */
+	/* begin transaction */
 	rc = wc->session->begin_transaction(wc->session, NULL);
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,

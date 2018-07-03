@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  * 
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -165,6 +165,7 @@ LDAP_BEGIN_DECL
 #define LDAP_OPT_X_TLS_CACERT		0x6016
 #define LDAP_OPT_X_TLS_CERT			0x6017
 #define LDAP_OPT_X_TLS_KEY			0x6018
+#define LDAP_OPT_X_TLS_PEERKEY_HASH	0x6019
 
 #define LDAP_OPT_X_TLS_NEVER	0
 #define LDAP_OPT_X_TLS_HARD		1
@@ -1547,6 +1548,9 @@ ldap_initialize LDAP_P((
 LDAP_F( LDAP * )
 ldap_dup LDAP_P((
 	LDAP *old ));
+
+LDAP_F( int )
+ldap_connect( LDAP *ld );
 
 /*
  * in tls.c

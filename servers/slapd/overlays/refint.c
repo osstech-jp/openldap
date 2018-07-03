@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2004-2017 The OpenLDAP Foundation.
+ * Copyright 2004-2018 The OpenLDAP Foundation.
  * Portions Copyright 2004 Symas Corporation.
  * All rights reserved.
  *
@@ -235,7 +235,7 @@ refint_cf_gen(ConfigArgs *c)
 		}
 		break;
 	case SLAP_CONFIG_ADD:
-		/* fallthrough to LDAP_MOD_ADD */
+		/* fallthru to LDAP_MOD_ADD */
 	case LDAP_MOD_ADD:
 		switch ( c->type ) {
 		case REFINT_ATTRS:

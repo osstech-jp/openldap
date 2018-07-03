@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2009-2017 The OpenLDAP Foundation.
+ * Copyright 2009-2018 The OpenLDAP Foundation.
  * Portions copyright 2009 Symas Corporation.
  * All rights reserved.
  *
@@ -655,7 +655,7 @@ static void send_entry(
 		return;
 
 	/* RFC 2891: If critical then send the entries iff they were
-	 * succesfully sorted.  If non-critical send all entries
+	 * successfully sorted.  If non-critical send all entries
 	 * whether they were sorted or not.
 	 */
 	if ( (op->o_ctrlflag[sss_cid] != SLAP_CONTROL_CRITICAL) ||

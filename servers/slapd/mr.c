@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,7 +156,7 @@ mr_make_syntax_compat_with_mr(
 	assert( mr != NULL );
 
 	if ( mr->smr_compat_syntaxes ) {
-		/* count esisting */
+		/* count existing */
 		for ( n = 0;
 			mr->smr_compat_syntaxes[ n ];
 			n++ )

@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,7 +111,7 @@ struct ldap_int_thread_poolq_s {
 	ldap_pvt_thread_cond_t ltp_cond;
 
 	/* ltp_pause == 0 ? &ltp_pending_list : &empty_pending_list,
-	 * maintaned to reduce work for pool_wrapper()
+	 * maintained to reduce work for pool_wrapper()
 	 */
 	ldap_int_tpool_plist_t *ltp_work_list;
 

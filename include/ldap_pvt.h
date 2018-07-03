@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  * 
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -325,6 +325,11 @@ struct ldifrecord;
 /* abandon */
 LDAP_F ( int ) ldap_pvt_discard LDAP_P((
 	struct ldap *ld, ber_int_t msgid ));
+
+/* init.c */
+LDAP_F( int )
+ldap_pvt_conf_option LDAP_P((
+	char *cmd, char *opt, int userconf ));
 
 /* ldifutil.c */
 LDAP_F( int )

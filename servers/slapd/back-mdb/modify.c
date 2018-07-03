@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2017 The OpenLDAP Foundation.
+ * Copyright 2000-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,11 +49,20 @@ mdb_modify_idxflags(
 			ap = attr_find( oldattrs, desc );
 			if ( ap ) ap->a_flags |= SLAP_ATTR_IXDEL;
 
-			/* Find all other attrs that index to same slot */
-			for ( ap = newattrs; ap; ap = ap->a_next ) {
-				ai = mdb_index_mask( op->o_bd, ap->a_desc, &ix2 );
-				if ( ai && ix2.bv_val == ix_at.bv_val )
-					ap->a_flags |= SLAP_ATTR_IXADD;
+			/* ITS#8678 FIXME
+			 * If using 32bit hashes, or substring index, must account for
+			 * possible index collisions. If no substring index, and using
+			 * 64bit hashes, assume we don't need to check for collisions.
+			 *
+			 * In 2.5 use refcounts and avoid all of this mess.
+			 */
+			if (!slap_hash64(-1) || (ai->ai_indexmask & SLAP_INDEX_SUBSTR)) {
+				/* Find all other attrs that index to same slot */
+				for ( ap = newattrs; ap; ap = ap->a_next ) {
+					ai = mdb_index_mask( op->o_bd, ap->a_desc, &ix2 );
+					if ( ai && ix2.bv_val == ix_at.bv_val )
+						ap->a_flags |= SLAP_ATTR_IXADD;
+				}
 			}
 
 		} else {
@@ -174,8 +183,11 @@ do_add:
 				if ( anew->a_flags & SLAP_ATTR_BIG_MULTI ) {
 					if (!mvc) {
 						err = mdb_cursor_open( tid, mdb->mi_dbis[MDB_ID2VAL], &mvc );
-						if (err)
+						if (err) {
+mval_fail:					strncpy( textbuf, mdb_strerror( err ), textlen );
+							err = LDAP_OTHER;
 							break;
+						}
 					}
 					/* if prev was set, just add new values */
 					if (a_flags & SLAP_ATTR_BIG_MULTI ) {
@@ -190,6 +202,8 @@ do_add:
 						if (anew->a_nvals == anew->a_vals)
 							anew->a_nvals = NULL;
 					}
+					if ( err )
+						goto mval_fail;
 				}
 			}
 			break;
@@ -228,7 +242,7 @@ do_del:
 					if (!mvc) {
 						err = mdb_cursor_open( tid, mdb->mi_dbis[MDB_ID2VAL], &mvc );
 						if (err)
-							break;
+							goto mval_fail;
 					}
 					if ( mod->sm_numvals ) {
 						anew = attr_find( e->e_attrs, mod->sm_desc );
@@ -250,6 +264,8 @@ do_del:
 						anew->a_numvals = 0;
 					}
 					err = mdb_mval_del( op, mvc, e->e_id, anew );
+					if ( err )
+						goto mval_fail;
 				}
 			}
 			break;
@@ -270,7 +286,7 @@ do_del:
 					if (!mvc) {
 						err = mdb_cursor_open( tid, mdb->mi_dbis[MDB_ID2VAL], &mvc );
 						if (err)
-							break;
+							goto mval_fail;
 					}
 					/* delete all values */
 					anew = &a_dummy;
@@ -278,17 +294,19 @@ do_del:
 					anew->a_numvals = 0;
 					err = mdb_mval_del( op, mvc, e->e_id, anew );
 					if (err)
-						break;
+						goto mval_fail;
 				}
 				anew = attr_find( e->e_attrs, mod->sm_desc );
-				if (mod->sm_numvals >= mdb->mi_multi_lo) {
+				if (mod->sm_numvals > mdb->mi_multi_hi) {
 					anew->a_flags |= SLAP_ATTR_BIG_MULTI;
 					if (!mvc) {
 						err = mdb_cursor_open( tid, mdb->mi_dbis[MDB_ID2VAL], &mvc );
 						if (err)
-							break;
+							goto mval_fail;
 					}
 					err = mdb_mval_put(op, mvc, e->e_id, anew);
+					if (err)
+						goto mval_fail;
 				} else if (anew) {
 					/* revert back to normal attr */
 					anew->a_flags &= ~SLAP_ATTR_BIG_MULTI;
@@ -320,6 +338,7 @@ do_del:
  			 */
  			mod->sm_op = LDAP_MOD_ADD;
 			softop = 1;
+			chkpresent = 0;
 			goto do_add;
 
 		case SLAP_MOD_SOFTDEL:
@@ -347,6 +366,7 @@ do_del:
  			 * We need to add index if necessary.
  			 */
  			mod->sm_op = LDAP_MOD_ADD;
+			softop = 0;
 			chkpresent = 1;
 			goto do_add;
 

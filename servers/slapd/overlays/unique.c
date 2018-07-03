@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2004-2017 The OpenLDAP Foundation.
+ * Copyright 2004-2018 The OpenLDAP Foundation.
  * Portions Copyright 2004,2006-2007 Symas Corporation.
  * All rights reserved.
  *
@@ -746,7 +746,7 @@ unique_cf_uri( ConfigArgs *c )
 		rc = 0;
 		break;
 
-	case SLAP_CONFIG_ADD: /* fallthrough */
+	case SLAP_CONFIG_ADD: /* fallthru */
 	case LDAP_MOD_ADD:
 		if ( legacy ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),

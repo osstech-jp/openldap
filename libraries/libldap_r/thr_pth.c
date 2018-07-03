@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,6 +129,13 @@ ldap_pvt_thread_mutex_init( ldap_pvt_thread_mutex_t *mutex )
 	return( pth_mutex_init( mutex ) ? 0 : errno );
 }
 
+int
+ldap_pvt_thread_mutex_recursive_init( ldap_pvt_thread_mutex_t *mutex )
+{
+	/* All pth mutexes are recursive */
+	return ldap_pvt_thread_mutex_init( mutex );
+}
+
 int 
 ldap_pvt_thread_mutex_destroy( ldap_pvt_thread_mutex_t *mutex )
 {
@@ -152,6 +159,17 @@ ldap_pvt_thread_mutex_trylock( ldap_pvt_thread_mutex_t *mutex )
 {
 	return( pth_mutex_acquire( mutex, 1, NULL ) ? 0 : errno );
 }
+
+int ldap_pvt_thread_mutex_recursive_init( ldap_pvt_thread_mutex_recursive_t *mutex )
+	LDAP_GCCATTR((alias("ldap_pvt_thread_mutex_init")));
+int ldap_pvt_thread_mutex_recursive_destroy( ldap_pvt_thread_mutex_recursive_t *mutex )
+	LDAP_GCCATTR((alias("ldap_pvt_thread_mutex_destroy")));
+int ldap_pvt_thread_mutex_recursive_lock( ldap_pvt_thread_mutex_recursive_t *mutex )
+	LDAP_GCCATTR((alias("ldap_pvt_thread_mutex_lock")));
+int ldap_pvt_thread_mutex_recursive_trylock( ldap_pvt_thread_mutex_recursive_t *mutex )
+	LDAP_GCCATTR((alias("ldap_pvt_thread_mutex_trylock")));
+int ldap_pvt_thread_mutex_recursive_unlock( ldap_pvt_thread_mutex_recursive_t *mutex )
+	LDAP_GCCATTR((alias("ldap_pvt_thread_mutex_unlock")));
 
 ldap_pvt_thread_t
 ldap_pvt_thread_self( void )

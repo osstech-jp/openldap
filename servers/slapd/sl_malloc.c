@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2017 The OpenLDAP Foundation.
+ * Copyright 2003-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -136,6 +136,9 @@ slap_sl_mem_destroy(
 	struct slab_heap *sh = data;
 	struct slab_object *so;
 	int i;
+
+	if (!sh)
+		return;
 
 	if (!sh->sh_stack) {
 		for (i = 0; i <= sh->sh_maxorder - order_start; i++) {
@@ -647,6 +650,21 @@ slap_sl_free(void *ptr, void *ctx)
 			}
 		}
 	}
+}
+
+void
+slap_sl_release( void *ptr, void *ctx )
+{
+	struct slab_heap *sh = ctx;
+	if ( sh && ptr >= sh->sh_base && ptr <= sh->sh_end )
+		sh->sh_last = ptr;
+}
+
+void *
+slap_sl_mark( void *ctx )
+{
+	struct slab_heap *sh = ctx;
+	return sh->sh_last;
 }
 
 /*

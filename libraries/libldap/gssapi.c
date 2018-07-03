@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Author: Stefan Metzmacher <metze@sernet.de>
@@ -204,7 +204,7 @@ sb_sasl_gssapi_encode(
 
 	pkt_len = 4 + wrapped.length;
 
-	/* Grow the packet buffer if neccessary */
+	/* Grow the packet buffer if necessary */
 	if ( dst->buf_size < pkt_len &&
 		ber_pvt_sb_grow_buffer( dst, pkt_len ) < 0 )
 	{
@@ -281,7 +281,7 @@ sb_sasl_gssapi_decode(
 		return -1;
 	}
 
-	/* Grow the packet buffer if neccessary */
+	/* Grow the packet buffer if necessary */
 	if ( dst->buf_size < unwrapped.length &&
 		ber_pvt_sb_grow_buffer( dst, unwrapped.length ) < 0 )
 	{

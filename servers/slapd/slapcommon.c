@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * Portions Copyright 1998-2003 Kurt D. Zeilenga.
  * Portions Copyright 2003 IBM Corporation.
  * All rights reserved.
@@ -228,7 +228,8 @@ parse_slapopt( int tool, int *mode )
 			break;
 		}
 
-	} else if ( strncasecmp( optarg, "ldif-wrap", len ) == 0 ) {
+	} else if ( ( strncasecmp( optarg, "ldif_wrap", len ) == 0 ) ||
+			( strncasecmp( optarg, "ldif-wrap", len ) == 0 ) ) {
 		switch ( tool ) {
 		case SLAPCAT:
 			if ( strcasecmp( p, "no" ) == 0 ) {
@@ -237,7 +238,7 @@ parse_slapopt( int tool, int *mode )
 			} else {
 				unsigned int u;
 				if ( lutil_atou( &u, p ) ) {
-					Debug( LDAP_DEBUG_ANY, "unable to parse ldif-wrap=\"%s\".\n", p, 0, 0 );
+					Debug( LDAP_DEBUG_ANY, "unable to parse ldif_wrap=\"%s\".\n", p, 0, 0 );
 					return -1;
 				}
 				ldif_wrap = (ber_len_t)u;
@@ -245,7 +246,7 @@ parse_slapopt( int tool, int *mode )
 			break;
 
 		default:
-			Debug( LDAP_DEBUG_ANY, "value-check meaningless for tool.\n", 0, 0, 0 );
+			Debug( LDAP_DEBUG_ANY, "ldif-wrap meaningless for tool.\n", 0, 0, 0 );
 			break;
 		}
 

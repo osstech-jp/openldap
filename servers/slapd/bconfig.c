@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2005-2017 The OpenLDAP Foundation.
+ * Copyright 2005-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -698,7 +698,7 @@ static ConfigTable config_back_cf_table[] = {
 			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ "timelimit", "limit", 2, 0, 0, ARG_MAY_DB|ARG_MAGIC,
 		&config_timelimit, "( OLcfgGlAt:67 NAME 'olcTimeLimit' "
-			"SYNTAX OMsDirectoryString )", NULL, NULL },
+			"SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
 	{ "TLSCACertificate", NULL, 2, 2, 0,
 #ifdef HAVE_TLS
 		CFG_TLS_CACERT|ARG_BINARY|ARG_MAGIC, &config_tls_option,

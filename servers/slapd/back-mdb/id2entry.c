@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2017 The OpenLDAP Foundation.
+ * Copyright 2000-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -307,18 +307,23 @@ again:
 			MDB_cursor *mvc;
 			Attribute *a;
 			rc = mdb_cursor_open( txn, mdb->mi_dbis[MDB_ID2VAL], &mvc );
-			if( rc )
-				return rc;
-			for ( a = ec.multi; a; a=a->a_next ) {
-				if (!(a->a_flags & SLAP_ATTR_BIG_MULTI))
-					continue;
-				rc = mdb_mval_put( op, mvc, e->e_id, a );
-				if( rc != LDAP_SUCCESS )
-					break;
+			if( !rc ) {
+				for ( a = ec.multi; a; a=a->a_next ) {
+					if (!(a->a_flags & SLAP_ATTR_BIG_MULTI))
+						continue;
+					rc = mdb_mval_put( op, mvc, e->e_id, a );
+					if( rc )
+						break;
+				}
+				mdb_cursor_close( mvc );
 			}
-			mdb_cursor_close( mvc );
-			if ( rc )
-				return rc;
+			if ( rc ) {
+				Debug( LDAP_DEBUG_ANY,
+					"mdb_id2entry_put: mdb_mval_put failed: %s(%d) \"%s\"\n",
+					mdb_strerror(rc), rc,
+					e->e_nname.bv_val );
+				return LDAP_OTHER;
+			}
 		}
 	}
 	if (rc) {
@@ -384,7 +389,6 @@ int mdb_id2entry(
 	ID id,
 	Entry **e )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	MDB_val key, data;
 	int rc = 0;
 
@@ -534,7 +538,6 @@ int mdb_entry_release(
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	struct mdb_op_info *moi = NULL;
-	int rc;
  
 	/* slapMode : SLAP_SERVER_MODE, SLAP_TOOL_MODE,
 			SLAP_TRUNCATE_MODE, SLAP_UNDEFINED_MODE */
@@ -924,8 +927,7 @@ static int mdb_entry_partsize(struct mdb_info *mdb, MDB_txn *txn, Entry *e,
 static int mdb_entry_encode(Operation *op, Entry *e, MDB_val *data, Ecount *eh)
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	ber_len_t len, i;
-	int rc;
+	ber_len_t i;
 	Attribute *a;
 	unsigned char *ptr;
 	unsigned int *lp, l;
@@ -1004,7 +1006,6 @@ int mdb_entry_decode(Operation *op, MDB_txn *txn, MDB_val *data, ID id, Entry **
 	Attribute *a;
 	Entry *x;
 	const char *text;
-	AttributeDescription *ad;
 	unsigned int *lp = (unsigned int *)data->mv_data;
 	unsigned char *ptr;
 	BerVarray bptr;

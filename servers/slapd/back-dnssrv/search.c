@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2017 The OpenLDAP Foundation.
+ * Copyright 2000-2018 The OpenLDAP Foundation.
  * Portions Copyright 2000-2003 Kurt D. Zeilenga.
  * All rights reserved.
  *
@@ -93,7 +93,7 @@ dnssrv_back_search(
 	hosts = ldap_str2charray( hostlist, " " );
 
 	if( hosts == NULL ) {
-		Debug( LDAP_DEBUG_TRACE, "DNSSRV: str2charrary error\n", 0, 0, 0 );
+		Debug( LDAP_DEBUG_TRACE, "DNSSRV: str2charray error\n", 0, 0, 0 );
 		send_ldap_error( op, rs, LDAP_OTHER,
 			"problem processing DNS SRV records for DN" );
 		goto done;

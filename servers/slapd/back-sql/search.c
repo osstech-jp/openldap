@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1999-2017 The OpenLDAP Foundation.
+ * Copyright 1999-2018 The OpenLDAP Foundation.
  * Portions Copyright 1999 Dmitry Kovalev.
  * Portions Copyright 2002 Pierangelo Masarati.
  * Portions Copyright 2004 Mark Adamson.
@@ -1013,7 +1013,7 @@ backsql_process_filter( backsql_srch_info *bsi, Filter *f )
 
 	if ( vat == NULL ) {
 		/* search anyway; other parts of the filter
-		 * may succeeed */
+		 * may succeed */
 		backsql_strfcat_x( &bsi->bsi_flt_where,
 				bsi->bsi_op->o_tmpmemctx,
 				"l",

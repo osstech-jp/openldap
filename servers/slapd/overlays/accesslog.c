@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2005-2017 The OpenLDAP Foundation.
+ * Copyright 2005-2018 The OpenLDAP Foundation.
  * Portions copyright 2004-2005 Symas Corporation.
  * All rights reserved.
  *
@@ -1458,7 +1458,7 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 	Modifications *m;
 	struct berval *b, uuid = BER_BVNULL;
 	int i;
-	int logop, do_graduate = 0;
+	int logop;
 	slap_verbmasks *lo;
 	Entry *e = NULL, *old = NULL, *e_uuid = NULL;
 	char timebuf[LDAP_LUTIL_GENTIME_BUFSIZE+8];
@@ -1491,17 +1491,9 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 	if ( lo->mask & LOG_OP_WRITES ) {
 		slap_callback *cb;
 
-		/* Most internal ops are not logged */
-		if ( op->o_dont_replicate) {
-			/* Let contextCSN updates from syncrepl thru; the underlying
-			 * syncprov needs to see them. Skip others.
-			 */
-			if (( op->o_tag != LDAP_REQ_MODIFY ||
-				op->orm_modlist->sml_op != LDAP_MOD_REPLACE ||
-				op->orm_modlist->sml_desc != slap_schema.si_ad_contextCSN ) &&
-				op->orm_no_opattrs )
+		/* These internal ops are not logged */
+		if ( op->o_dont_replicate )
 			return SLAP_CB_CONTINUE;
-		}
 
 		ldap_pvt_thread_mutex_lock( &li->li_log_mutex );
 		old = li->li_old;
@@ -1515,6 +1507,11 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 				break;
 			}
 		}
+#ifdef RMUTEX_DEBUG
+		Debug( LDAP_DEBUG_SYNC,
+			"accesslog_response: unlocking rmutex for tid %x\n",
+			op->o_tid, 0, 0 );
+#endif
 		ldap_pvt_thread_rmutex_unlock( &li->li_op_rmutex, op->o_tid );
 	}
 
@@ -1867,7 +1864,6 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 		slap_get_commit_csn( op, &maxcsn, &foundit );
 		if ( !BER_BVISEMPTY( &maxcsn ) ) {
 			slap_queue_csn( &op2, &op->o_csn );
-			do_graduate = 1;
 		} else {
 			attr_merge_normalize_one( e, slap_schema.si_ad_entryCSN,
 				&op->o_csn, op->o_tmpmemctx );
@@ -1875,11 +1871,13 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 	}
 
 	op2.o_bd->be_add( &op2, &rs2 );
+	if ( rs2.sr_err != LDAP_SUCCESS ) {
+		Debug( LDAP_DEBUG_SYNC,
+			"accesslog_response: got result 0x%x adding log entry %s\n",
+			rs2.sr_err, op2.o_req_dn.bv_val, 0 );
+	}
 	if ( e == op2.ora_e ) entry_free( e );
 	e = NULL;
-	if ( do_graduate ) {
-		slap_graduate_commit_csn( &op2 );
-	}
 
 done:
 	if ( lo->mask & LOG_OP_WRITES )
@@ -1938,7 +1936,7 @@ accesslog_mod_cleanup( Operation *op, SlapReply *rs )
 
 	op->o_tmpfree( sc, op->o_tmpmemctx );
 
-	if ( on ) {
+	if ( on && rs->sr_err != LDAP_SUCCESS ) {
 		BackendInfo *bi = op->o_bd->bd_info;
 		op->o_bd->bd_info = (BackendInfo *)on;
 		accesslog_response( op, rs );
@@ -1957,22 +1955,8 @@ accesslog_op_mod( Operation *op, SlapReply *rs )
 	int doit = 0;
 
 	/* These internal ops are not logged */
-	if ( op->o_dont_replicate ) {
-		/* Let contextCSN updates from syncrepl thru; the underlying
-		 * syncprov needs to see them. Skip others.
-		 */
-		if (( op->o_tag != LDAP_REQ_MODIFY ||
-			op->orm_modlist->sml_op != LDAP_MOD_REPLACE ||
-			op->orm_modlist->sml_desc != slap_schema.si_ad_contextCSN ) &&
-			op->orm_no_opattrs )
+	if ( op->o_dont_replicate )
 		return SLAP_CB_CONTINUE;
-		/* give this a unique timestamp */
-		op->o_tincr++;
-		if ( op->o_tincr >= 1000000 ) {
-			op->o_tincr -= 1000000;
-			op->o_time++;
-		}
-	}
 
 	logop = accesslog_op2logop( op );
 	lo = logops+logop+EN_OFFSET;
@@ -1995,7 +1979,17 @@ accesslog_op_mod( Operation *op, SlapReply *rs )
 		for ( cb2 = op->o_callback; cb2->sc_next; cb2 = cb2->sc_next );
 		cb2->sc_next = cb;
 
+#ifdef RMUTEX_DEBUG
+		Debug( LDAP_DEBUG_SYNC,
+			"accesslog_op_mod: locking rmutex for tid %x\n",
+			op->o_tid, 0, 0 );
+#endif
 		ldap_pvt_thread_rmutex_lock( &li->li_op_rmutex, op->o_tid );
+#ifdef RMUTEX_DEBUG
+		Debug( LDAP_DEBUG_STATS,
+			"accesslog_op_mod: locked rmutex for tid %x\n",
+			op->o_tid, 0, 0 );
+#endif
 		if ( li->li_oldf && ( op->o_tag == LDAP_REQ_DELETE ||
 			op->o_tag == LDAP_REQ_MODIFY ||
 			( op->o_tag == LDAP_REQ_MODRDN && li->li_oldattrs )))
@@ -2283,6 +2277,7 @@ accesslog_db_root(
 		db = *li->li_db;
 		op->o_bd = &db;
 
+		op->o_tag = LDAP_REQ_ADD;
 		op->ora_e = e;
 		op->o_req_dn = e->e_name;
 		op->o_req_ndn = e->e_nname;

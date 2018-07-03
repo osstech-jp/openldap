@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1220,17 +1220,17 @@ OpenLDAPaciNormalizeRight(
 				{
 					ad = NULL;
 					text = NULL;
-					/* openldap 2.1 aci compabitibility [entry] -> entry */
+					/* openldap 2.1 aci compatibility [entry] -> entry */
 					if ( ber_bvstrcasecmp( &attr, &aci_bv[ ACI_BV_BR_ENTRY ] ) == 0 ) {
 						ad = &adstatic;
 						adstatic.ad_cname = aci_bv[ ACI_BV_ENTRY ];
 
-					/* openldap 2.1 aci compabitibility [children] -> children */
+					/* openldap 2.1 aci compatibility [children] -> children */
 					} else if ( ber_bvstrcasecmp( &attr, &aci_bv[ ACI_BV_BR_CHILDREN ] ) == 0 ) {
 						ad = &adstatic;
 						adstatic.ad_cname = aci_bv[ ACI_BV_CHILDREN ];
 
-					/* openldap 2.1 aci compabitibility [all] -> only [all] */
+					/* openldap 2.1 aci compatibility [all] -> only [all] */
 					} else if ( ber_bvstrcasecmp( &attr, &aci_bv[ ACI_BV_BR_ALL ] ) == 0 ) {
 						ber_memfree_x( nattrs.bv_val, ctx );
 						nattrs = aci_bv[ ACI_BV_BR_ALL ];

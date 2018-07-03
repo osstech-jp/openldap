@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2017 The OpenLDAP Foundation.
+ * Copyright 2000-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1158,9 +1158,12 @@ done:
 		}
 	}
 
-	rc = bdb->bi_id2entry->bdi_db->cursor(
-		bdb->bi_id2entry->bdi_db, bdb->bi_cache.c_txn, &cursor,
-		bdb->bi_db_opflags );
+	if ( cursor == NULL )
+	{
+		rc = bdb->bi_id2entry->bdi_db->cursor(
+			bdb->bi_id2entry->bdi_db, bdb->bi_cache.c_txn, &cursor,
+			bdb->bi_db_opflags );
+	}
 
 	return rc;
 }

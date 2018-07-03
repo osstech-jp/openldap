@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2017 The OpenLDAP Foundation.
+ * Copyright 2000-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -292,7 +292,6 @@ static void scope_chunk_free( void *key, void *data )
 
 static ID2 *scope_chunk_get( Operation *op )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	ID2 *ret = NULL;
 
 	ldap_pvt_thread_pool_getkey( op->o_threadctx, (void *)scope_chunk_get,
@@ -309,7 +308,6 @@ static ID2 *scope_chunk_get( Operation *op )
 
 static void scope_chunk_ret( Operation *op, ID2 *scopes )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	void *ret = NULL;
 
 	ldap_pvt_thread_pool_getkey( op->o_threadctx, (void *)scope_chunk_get,
@@ -710,6 +708,7 @@ dn2entry_retry:
 	}
 
 	wwctx.flag = 0;
+	wwctx.nentries = 0;
 	/* If we're running in our own read txn */
 	if (  moi == &opinfo ) {
 		cb.sc_writewait = mdb_writewait;
@@ -1124,8 +1123,11 @@ loop_continue:
 		if ( moi == &opinfo && !wwctx.flag && mdb->mi_rtxn_size ) {
 			wwctx.nentries++;
 			if ( wwctx.nentries >= mdb->mi_rtxn_size ) {
+				MDB_envinfo ei;
 				wwctx.nentries = 0;
-				mdb_rtxn_snap( op, &wwctx );
+				mdb_env_info(mdb->mi_dbenv, &ei);
+				if ( ei.me_last_txnid > mdb_txn_id( ltid ))
+					mdb_rtxn_snap( op, &wwctx );
 			}
 		}
 		if ( wwctx.flag ) {

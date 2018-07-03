@@ -1,7 +1,7 @@
 dnl $OpenLDAP$
 dnl This work is part of OpenLDAP Software <http://www.openldap.org/>.
 dnl
-dnl Copyright 1998-2017 The OpenLDAP Foundation.
+dnl Copyright 1998-2018 The OpenLDAP Foundation.
 dnl All rights reserved.
 dnl
 dnl Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@ define([AC_LIBTOOL_LANG_F77_CONFIG], [:])dnl
 define([AC_LIBTOOL_LANG_GCJ_CONFIG], [:])dnl
 dnl ================================================================
 dnl Configure.in for OpenLDAP
-AC_COPYRIGHT([[Copyright 1998-2017 The OpenLDAP Foundation. All rights reserved.
+AC_COPYRIGHT([[Copyright 1998-2018 The OpenLDAP Foundation. All rights reserved.
 Restrictions apply, see COPYRIGHT and LICENSE files.]])
 AC_REVISION([$Id$])
 AC_INIT([OpenLDAP],,[http://www.openldap.org/its/])
@@ -98,7 +98,7 @@ AH_TOP([
 /* begin of portable.h.pre */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation
+ * Copyright 1998-2018 The OpenLDAP Foundation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -422,7 +422,7 @@ dnl ----------------------------------------------------------------
 
 # validate options
 if test $ol_enable_slapd = no ; then
-	dnl SLAPD was specificallly disabled
+	dnl SLAPD was specifically disabled
 	if test $ol_enable_slapi = yes ; then
 		AC_MSG_WARN([slapd disabled, ignoring --enable-slapi argument])
 	fi
@@ -610,6 +610,7 @@ KRB4_LIBS=
 KRB5_LIBS=
 SASL_LIBS=
 TLS_LIBS=
+WITH_TLS_TYPE=
 MODULES_LIBS=
 SLAPI_LIBS=
 LIBSLAPI=
@@ -969,7 +970,7 @@ AC_CHECK_FUNC(select, :, AC_MSG_ERROR([select() required.]))
 
 if test "${ac_cv_header_winsock_h}" != yes; then
 	dnl Select arg types
-	dnl (if this detection becomes permenent, it and the select() detection
+	dnl (if this detection becomes permanent, it and the select() detection
 	dnl should be done before the yielding select test) 
 	AC_FUNC_SELECT_ARGTYPES
 fi
@@ -993,6 +994,18 @@ if test "${ac_cv_header_sys_epoll_h}" = yes; then
 	exit (epfd == -1 ? 1 : 0);
 }]])],[AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_EPOLL,1, [define if your system supports epoll])],[AC_MSG_RESULT(no)],[AC_MSG_RESULT(no)])
+fi
+
+dnl ----------------------------------------------------------------
+AC_CHECK_HEADERS( sys/event.h )
+if test "${ac_cv_header_sys_event_h}" = yes; then
+AC_MSG_CHECKING(for kqueue system call)
+AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(int argc, char **argv)
+{
+	int kqfd = kqueue();
+	exit (kqfd == -1 ? 1 : 0);
+}]])],[AC_MSG_RESULT(yes)
+AC_DEFINE(HAVE_KQUEUE,1, [define if your system supports kqueue])],[AC_MSG_RESULT(no)],[AC_MSG_RESULT(no)])
 fi
 
 dnl ----------------------------------------------------------------
@@ -1198,6 +1211,7 @@ if test $ol_with_tls = openssl || test $ol_with_tls = auto ; then
 		if test $have_openssl = yes ; then
 			ol_with_tls=openssl
 			ol_link_tls=yes
+			WITH_TLS_TYPE=openssl
 
 			AC_DEFINE(HAVE_OPENSSL, 1, 
 				[define if you have OpenSSL])
@@ -1225,11 +1239,11 @@ if test $ol_link_tls = no ; then
 		AC_CHECK_HEADERS(gnutls/gnutls.h)
 
 		if test $ac_cv_header_gnutls_gnutls_h = yes ; then
-			AC_PREPROC_IFELSE(
+			AC_PREPROC_IFELSE([AC_LANG_SOURCE(
 				[[#include <gnutls/gnutls.h>]
 [#if GNUTLS_VERSION_NUMBER < 0x020c00]
 [#error "GnuTLS 2.12.0 or newer required"]
-[#endif]],
+[#endif]])],
 					, [AC_MSG_FAILURE([GnuTLS is too old])])
 
 			AC_CHECK_LIB(gnutls, gnutls_init,
@@ -1238,6 +1252,7 @@ if test $ol_link_tls = no ; then
 			if test $have_gnutls = yes ; then
 				ol_with_tls=gnutls
 				ol_link_tls=yes
+				WITH_TLS_TYPE=gnutls
 
 				TLS_LIBS="-lgnutls"
 
@@ -1491,7 +1506,7 @@ pthread_rwlock_t rwlock;
 			AC_DEFINE(HAVE_PTHREAD_DETACH,1,
 				[define if you have pthread_detach function])
 
-			dnl Check for setconcurreny functions
+			dnl Check for setconcurrency functions
 			AC_CHECK_FUNCS(	\
 				pthread_setconcurrency \
 				pthread_getconcurrency \
@@ -1506,7 +1521,7 @@ pthread_rwlock_t rwlock;
 				AC_MSG_ERROR([LinuxThreads header/library mismatch]);
 			fi
 
-			AC_CACHE_CHECK([if pthread_create() works],
+			AC_CACHE_CHECK([AC_LANG_SOURCE([if pthread_create() works])],
 				ol_cv_pthread_create_works,[
 			AC_RUN_IFELSE([OL_PTHREAD_TEST_PROGRAM],
 				[ol_cv_pthread_create_works=yes],
@@ -1737,7 +1752,7 @@ case $ol_with_threads in auto | yes | lwp)
 				ol_with_yielding_select=yes
 			fi
 
-			dnl Check for setconcurreny functions
+			dnl Check for setconcurrency functions
 			AC_CHECK_FUNCS(	\
 				thr_setconcurrency \
 				thr_getconcurrency \
@@ -1972,7 +1987,7 @@ hosts_access(req)
 		AC_DEFINE(HAVE_TCPD,1, [define if you have -lwrap])
 		WRAP_LIBS="-lwrap"
 	elif test $ol_enable_wrappers = yes ; then
-		AC_MSG_ERROR([could not find TCP wrappers, select apppropriate options or disable])
+		AC_MSG_ERROR([could not find TCP wrappers, select appropriate options or disable])
 	else
 		AC_MSG_WARN([could not find TCP wrappers, support disabled])
 		WRAP_LIBS=""
@@ -2242,10 +2257,16 @@ if test $ol_enable_crypt != no ; then
 		AC_CHECK_LIB(crypt, crypt, [LUTIL_LIBS="$LUTIL_LIBS -lcrypt"
 			have_crypt=yes], [have_crypt=no])])
 
+	LIBS="$TLS_LIBS $LIBS"
+	AC_CHECK_LIB(crypt, crypt_r, [have_crypt_r=yes], [have_crypt_r=no])
+
 	LIBS="$save_LIBS"
 
 	if test $have_crypt = yes ; then
 		AC_DEFINE(HAVE_CRYPT,1, [define if crypt(3) is available])
+		if test $have_crypt_r = yes ; then
+			AC_DEFINE(HAVE_CRYPT_R, 1, [define if crypt_r() is also available])
+		fi
 	else
 		AC_MSG_WARN([could not find crypt])
 		if test $ol_enable_crypt = yes ; then
@@ -2550,7 +2571,7 @@ if test "$ac_cv_func_getpeereid" != yes; then
 		fi
 		AC_CHECK_MEMBERS([struct stat.st_fstype, struct stat.st_vfstype])
 		if test "$ac_cv_member_struct_stat_st_fstype" = yes; then
-			AC_COMPILE_IFELSE([struct stat st; char *ptr=st.st_fstype;],
+			AC_COMPILE_IFELSE([AC_LANG_SOURCE([struct stat st; char *ptr=st.st_fstype;])],
 				AC_DEFINE([HAVE_STRUCT_STAT_ST_FSTYPE_CHAR],1,[define to 1 if st_fstype is char *]),
 				AC_DEFINE([HAVE_STRUCT_STAT_ST_FSTYPE_INT],1,[define to 1 if st_fstype is int]))
 		fi
@@ -3243,6 +3264,7 @@ AC_SUBST(KRB4_LIBS)
 AC_SUBST(KRB5_LIBS)
 AC_SUBST(SASL_LIBS)
 AC_SUBST(TLS_LIBS)
+AC_SUBST(WITH_TLS_TYPE)
 AC_SUBST(MODULES_LIBS)
 AC_SUBST(SLAPI_LIBS)
 AC_SUBST(LIBSLAPI)
@@ -3321,7 +3343,7 @@ rm -f $BACKENDSC
 cat > $BACKENDSC << ENDX
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -3372,7 +3394,7 @@ rm -f $OVERLAYSC
 cat > $OVERLAYSC << ENDX
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

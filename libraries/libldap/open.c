@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,29 @@ int ldap_open_defconn( LDAP *ld )
 
 	++ld->ld_defconn->lconn_refcnt;	/* so it never gets closed/freed */
 	return 0;
+}
+
+/*
+ * ldap_connect - Connect to an ldap server.
+ *
+ * Example:
+ *	LDAP	*ld;
+ *	ldap_initialize( &ld, url );
+ *	ldap_connect( ld );
+ */
+int
+ldap_connect( LDAP *ld )
+{
+	ber_socket_t sd = AC_SOCKET_INVALID;
+	int rc = LDAP_SUCCESS;
+
+	LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
+	if ( ber_sockbuf_ctrl( ld->ld_sb, LBER_SB_OPT_GET_FD, &sd ) == -1 ) {
+		rc = ldap_open_defconn( ld );
+	}
+	LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
+
+	return rc;
 }
 
 /*
@@ -128,6 +151,23 @@ ldap_create( LDAP **ldp )
 	/* Properly initialize the structs mutex */
 	ldap_pvt_thread_mutex_init( &(ld->ld_ldopts_mutex) );
 #endif
+
+#ifdef HAVE_TLS
+	if ( ld->ld_options.ldo_tls_pin_hashalg ) {
+		int len = strlen( gopts->ldo_tls_pin_hashalg );
+
+		ld->ld_options.ldo_tls_pin_hashalg =
+			LDAP_MALLOC( len + 1 + gopts->ldo_tls_pin.bv_len );
+		if ( !ld->ld_options.ldo_tls_pin_hashalg ) goto nomem;
+
+		ld->ld_options.ldo_tls_pin.bv_val = ld->ld_options.ldo_tls_pin_hashalg
+			+ len + 1;
+		AC_MEMCPY( ld->ld_options.ldo_tls_pin_hashalg, gopts->ldo_tls_pin_hashalg,
+				len + 1 + gopts->ldo_tls_pin.bv_len );
+	} else if ( !BER_BVISEMPTY(&ld->ld_options.ldo_tls_pin) ) {
+		ber_dupbv( &ld->ld_options.ldo_tls_pin, &gopts->ldo_tls_pin );
+	}
+#endif
 	LDAP_MUTEX_UNLOCK( &gopts->ldo_mutex );
 
 	ld->ld_valid = LDAP_VALID_SESSION;
@@ -191,6 +231,15 @@ nomem:
 	LDAP_FREE( ld->ld_options.ldo_def_sasl_authcid );
 	LDAP_FREE( ld->ld_options.ldo_def_sasl_realm );
 	LDAP_FREE( ld->ld_options.ldo_def_sasl_mech );
+#endif
+
+#ifdef HAVE_TLS
+	/* tls_pin_hashalg and tls_pin share the same buffer */
+	if ( ld->ld_options.ldo_tls_pin_hashalg ) {
+		LDAP_FREE( ld->ld_options.ldo_tls_pin_hashalg );
+	} else {
+		LDAP_FREE( ld->ld_options.ldo_tls_pin.bv_val );
+	}
 #endif
 	LDAP_FREE( (char *)ld );
 	return LDAP_NO_MEMORY;
@@ -450,6 +499,31 @@ ldap_int_open_connection(
 		--conn->lconn_refcnt;
 
 		if (rc != LDAP_SUCCESS) {
+			/* process connection callbacks */
+			{
+				struct ldapoptions *lo;
+				ldaplist *ll;
+				ldap_conncb *cb;
+
+				lo = &ld->ld_options;
+				LDAP_MUTEX_LOCK( &lo->ldo_mutex );
+				if ( lo->ldo_conn_cbs ) {
+					for ( ll=lo->ldo_conn_cbs; ll; ll=ll->ll_next ) {
+						cb = ll->ll_data;
+						cb->lc_del( ld, conn->lconn_sb, cb );
+					}
+				}
+				LDAP_MUTEX_UNLOCK( &lo->ldo_mutex );
+				lo = LDAP_INT_GLOBAL_OPT();
+				LDAP_MUTEX_LOCK( &lo->ldo_mutex );
+				if ( lo->ldo_conn_cbs ) {
+					for ( ll=lo->ldo_conn_cbs; ll; ll=ll->ll_next ) {
+						cb = ll->ll_data;
+						cb->lc_del( ld, conn->lconn_sb, cb );
+					}
+				}
+				LDAP_MUTEX_UNLOCK( &lo->ldo_mutex );
+			}
 			return -1;
 		}
 	}

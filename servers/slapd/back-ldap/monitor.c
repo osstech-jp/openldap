@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2003-2017 The OpenLDAP Foundation.
+ * Copyright 2003-2018 The OpenLDAP Foundation.
  * Portions Copyright 1999-2003 Howard Chu.
  * Portions Copyright 2000-2003 Pierangelo Masarati.
  * All rights reserved.
@@ -381,7 +381,7 @@ ldap_back_monitor_subsystem_destroy(
 
 /*
  * Connection monitoring subsystem:
- * Tries to mimick what the cn=connections,cn=monitor subsystem does
+ * Tries to mimic what the cn=connections,cn=monitor subsystem does
  * by creating volatile entries for each connection and populating them
  * according to the information attached to the connection.
  * At this moment the only exposed information is the DN used to bind it.
@@ -978,7 +978,7 @@ ldap_back_monitor_db_open( BackendDB *be )
 		rc = mbe->register_database( be, &li->li_monitor_info.lmi_ndn );
 		if ( rc != 0 ) {
 			Debug( LDAP_DEBUG_ANY, "ldap_back_monitor_db_open: "
-				"failed to register the databse with back-monitor\n",
+				"failed to register the database with back-monitor\n",
 				0, 0, 0 );
 		}
 	}

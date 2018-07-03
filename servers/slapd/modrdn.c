@@ -1,7 +1,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2017 The OpenLDAP Foundation.
+ * Copyright 1998-2018 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -185,9 +185,14 @@ do_modrdn(
 	op->o_bd = frontendDB;
 	rs->sr_err = frontendDB->be_modrdn( op, rs );
 
+	if ( rs->sr_err == SLAPD_ASYNCOP ) {
+		/* skip cleanup */
+		return rs->sr_err;
+	}
 #ifdef LDAP_X_TXN
 	if( rs->sr_err == LDAP_X_TXN_SPECIFY_OKAY ) {
 		/* skip cleanup */
+		return rs->sr_err;
 	}
 #endif
 
