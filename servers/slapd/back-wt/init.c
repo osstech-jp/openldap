@@ -283,6 +283,9 @@ wt_back_initialize( BackendInfo *bi )
 		LDAP_CONTROL_POST_READ,
 		LDAP_CONTROL_SUBENTRIES,
 		LDAP_CONTROL_X_PERMISSIVE_MODIFY,
+#ifdef LDAP_X_TXN
+		LDAP_CONTROL_X_TXN_SPEC,
+#endif
 		NULL
 	};
 
@@ -327,10 +330,14 @@ wt_back_initialize( BackendInfo *bi )
 	bi->bi_op_abandon = 0;
 
 	bi->bi_extended = wt_extended;
+#ifdef LDAP_X_TXN
+	bi->bi_op_txn = 0;
+#endif
 
 	bi->bi_chk_referrals = 0;
 	bi->bi_operational = wt_operational;
 
+	bi->bi_has_subordinates = wt_hasSubordinates;
 	bi->bi_entry_release_rw = wt_entry_release;
 	bi->bi_entry_get_rw = wt_entry_get;
 

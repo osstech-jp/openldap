@@ -237,6 +237,7 @@ extern BI_op_search         wt_search;
 extern BI_op_extended       wt_extended;
 
 extern BI_operational       wt_operational;
+extern BI_has_subordinates  wt_hasSubordinates;
 
 /* tools.c */
 int wt_entry_header(WT_ITEM *item, EntryHeader *eh);
