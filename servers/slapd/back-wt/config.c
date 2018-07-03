@@ -78,6 +78,7 @@ static void *
 wt_online_index( void *ctx, void *arg )
 {
 	// Not implement yet
+	return NULL;
 }
 
 /* Cleanup loose ends after Modify completes */

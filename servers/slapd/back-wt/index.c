@@ -22,6 +22,7 @@
 #include "portable.h"
 
 #include <stdio.h>
+#include <ac/string.h>
 #include "back-wt.h"
 #include "config.h"
 
@@ -80,7 +81,6 @@ int wt_index_param(
 	struct berval *prefixp )
 {
 	AttrInfo *ai;
-	int rc;
 	slap_mask_t mask, type = 0;
 
 	ai = wt_index_mask( be, desc, prefixp );
@@ -148,10 +148,9 @@ static int indexer(
 	int opid,
 	slap_mask_t mask )
 {
-	int rc, i;
+	int rc = LDAP_SUCCESS, i;
 	struct berval *keys;
 	WT_CURSOR *cursor = NULL;
-	WT_SESSION *session = wc->session;
 	assert( mask != 0 );
 
 	cursor = wt_ctx_open_index(wc, atname, 1);
@@ -252,7 +251,7 @@ static int index_at_values(
 	ID id,
 	int opid )
 {
-	int rc;
+	int rc = LDAP_SUCCESS;
 	slap_mask_t mask = 0;
 	int ixop = opid;
 	AttrInfo *ai = NULL;

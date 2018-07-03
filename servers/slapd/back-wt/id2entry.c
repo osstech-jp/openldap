@@ -44,8 +44,7 @@ static int wt_id2entry_put(
 	rc = cursor->insert(cursor);
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry_put)
-			   ": insert failed: %s (%d)\n",
+			   "wt_id2entry_put: insert failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -70,8 +69,7 @@ int wt_id2entry_add(
 								  "overwrite=false", &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_id2entry_put)
-				   ": open_cursor failed: %s (%d)\n",
+				   "wt_id2entry_put: open_cursor failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			return rc;
 		}
@@ -108,8 +106,7 @@ int wt_id2entry_update(
 								  "overwrite=true", &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_id2entry_put)
-				   ": open_cursor failed: %s (%d)\n",
+				   "wt_id2entry_put: open_cursor failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			return rc;
 		}
@@ -143,8 +140,7 @@ int wt_id2entry_delete(
 							  NULL, &cursor);
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry_delete)
-			   ": open_cursor failed: %s (%d)\n",
+			   "wt_id2entry_delete: open_cursor failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -152,8 +148,7 @@ int wt_id2entry_delete(
 	rc = cursor->remove(cursor);
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry_delete)
-			   ": remove failed: %s (%d)\n",
+			   "wt_id2entry_delete: remove failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -182,8 +177,7 @@ int wt_id2entry( BackendDB *be,
 								  NULL, &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_id2entry)
-				   ": open_cursor failed: %s (%d)\n",
+				   "wt_id2entry: open_cursor failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -208,9 +202,8 @@ int wt_id2entry( BackendDB *be,
 	rc = entry_decode( &eh, &e );
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry)
-			   ": entry decode error: %s (%d)\n",
-			   rc, 0, 0 );
+			   "wt_id2entry: entry decode error: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
 	e->e_id = id;
@@ -290,16 +283,16 @@ int wt_entry_get(
 	int	rc;
 	const char *at_name = at ? at->ad_cname.bv_val : "(null)";
 
-	Debug( LDAP_DEBUG_ARGS, LDAP_XSTRING(wt_entry_get)
-		   ": ndn: \"%s\"\n", ndn->bv_val, 0, 0 );
-	Debug( LDAP_DEBUG_ARGS, LDAP_XSTRING(wt_entry_get)
-		   ": oc: \"%s\", at: \"%s\"\n",
+	Debug( LDAP_DEBUG_ARGS,
+		   "wt_entry_get: ndn: \"%s\"\n", ndn->bv_val, 0, 0 );
+	Debug( LDAP_DEBUG_ARGS,
+		   "wt_entry_get: oc: \"%s\", at: \"%s\"\n",
 		   oc ? oc->soc_cname.bv_val : "(null)", at_name, 0);
 
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
-		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_entry_get)
-			   ": wt_ctx_get failed\n",
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_entry_get: wt_ctx_get failed\n",
 			   0, 0, 0 );
 		return LDAP_OTHER;
 	}
@@ -308,24 +301,24 @@ int wt_entry_get(
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
-			   ": cannot find entry: \"%s\"\n",
+		Debug( LDAP_DEBUG_ACL,
+			   "wt_entry_get: cannot find entry: \"%s\"\n",
 			   ndn->bv_val, 0, 0 );
 		return LDAP_NO_SUCH_OBJECT;
 	default:
-		Debug( LDAP_DEBUG_ANY, LDAP_XSTRING(wt_entry_get)
-			   ": wt_dn2entry failed rc=%d\n",
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_entry_get: wt_dn2entry failed rc=%d\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		rc = LDAP_OTHER;
 	}
 
-	Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
-		   ": found entry: \"%s\"\n",
+	Debug( LDAP_DEBUG_ACL,
+		   "wt_entry_get: found entry: \"%s\"\n",
 		   ndn->bv_val, 0, 0 );
 
 	if ( oc && !is_entry_objectclass( e, oc, 0 )) {
-		Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
-			   ": failed to find objectClass %s\n",
+		Debug( LDAP_DEBUG_ACL,
+			   "wt_entry_get: failed to find objectClass %s\n",
 			   oc->soc_cname.bv_val, 0, 0 );
 		rc = LDAP_NO_SUCH_ATTRIBUTE;
 		goto return_results;
@@ -333,8 +326,8 @@ int wt_entry_get(
 
 	/* NOTE: attr_find() or attrs_find()? */
 	if ( at && attr_find( e->e_attrs, at ) == NULL ) {
-		Debug( LDAP_DEBUG_ACL, LDAP_XSTRING(wt_entry_get)
-			   ": failed to find attribute %s\n",
+		Debug( LDAP_DEBUG_ACL,
+			   "wt_entry_get: failed to find attribute %s\n",
 			   at->ad_cname.bv_val, 0, 0 );
 		rc = LDAP_NO_SUCH_ATTRIBUTE;
 		goto return_results;
@@ -347,8 +340,8 @@ return_results:
 		*ent = e;
 	}
 
-	Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(wt_entry_get)
-		   ": rc=%d\n", rc, 0, 0 );
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_entry_get: rc=%d\n", rc, 0, 0 );
 
 	return rc;
 }

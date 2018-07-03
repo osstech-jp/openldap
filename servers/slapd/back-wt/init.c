@@ -61,7 +61,6 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	int rc;
 	struct stat st;
 	WT_SESSION *session = NULL;
-	WT_CURSOR *cursor = NULL;
 	WT_SESSION *cache_session = NULL;
 
 	if ( be->be_suffix == NULL ) {
@@ -275,7 +274,7 @@ wt_db_destroy( Backend *be, ConfigReply *cr )
 int
 wt_back_initialize( BackendInfo *bi )
 {
-	static char *controls[] = {
+	static const char *controls[] = {
 		LDAP_CONTROL_ASSERT,
 		LDAP_CONTROL_MANAGEDSAIT,
 		LDAP_CONTROL_NOOP,
@@ -298,7 +297,7 @@ wt_back_initialize( BackendInfo *bi )
 		SLAP_BFLAG_ALIASES |
 		SLAP_BFLAG_REFERRALS;
 
-	bi->bi_controls = controls;
+	bi->bi_controls = (char **)controls;
 
 	{ /* version check */
 		Debug( LDAP_DEBUG_TRACE,

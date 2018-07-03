@@ -22,7 +22,6 @@
 #include "portable.h"
 
 #include <stdio.h>
-#include <ac/string.h>
 #include "back-wt.h"
 #include "config.h"
 #include "idl.h"
@@ -125,7 +124,6 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 	BackendDB *be = op->o_bd;
 	int rc;
 	struct berval pdn = *ndn;
-	WT_ITEM item;
 	WT_SESSION *session = wc->cache_session;
 	WT_CURSOR *cursor = wc->idlcache;
 	int level = 0;

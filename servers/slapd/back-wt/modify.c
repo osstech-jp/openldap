@@ -21,8 +21,8 @@ B * top-level directory of the distribution or, alternatively, at
 #include "portable.h"
 
 #include <stdio.h>
+#include <ac/string.h>
 #include "back-wt.h"
-#include "config.h"
 
 static struct berval scbva[] = {
 	BER_BVC("glue"),
@@ -150,13 +150,13 @@ int wt_modify_internal(
 				break;
 			}
 
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: delete %s\n",
 				  mod->sm_desc->ad_cname.bv_val, 0, 0);
 			err = modify_delete_values( e, mod, get_permissiveModify(op),
 										text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
-				Debug(LDAP_DEBUG_ARGS,
+				Debug( LDAP_DEBUG_ARGS,
 					  "wt_modify_internal: %d %s\n", err, *text, 0);
 			} else {
 				got_delete = 1;
@@ -164,13 +164,13 @@ int wt_modify_internal(
 			break;
 
 		case LDAP_MOD_REPLACE:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: replace %s\n",
 				  mod->sm_desc->ad_cname.bv_val, 0, 0);
 			err = modify_replace_values( e, mod, get_permissiveModify(op),
 										 text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
-				Debug(LDAP_DEBUG_ARGS,
+				Debug( LDAP_DEBUG_ARGS,
 					  "wt_modify_internal: %d %s\n", err, *text, 0);
 			} else {
 				got_delete = 1;
@@ -178,13 +178,13 @@ int wt_modify_internal(
 			break;
 
 		case LDAP_MOD_INCREMENT:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: increment %s\n",
 				  mod->sm_desc->ad_cname.bv_val, 0, 0);
 			err = modify_increment_values( e, mod, get_permissiveModify(op),
 										   text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
-				Debug(LDAP_DEBUG_ARGS,
+				Debug( LDAP_DEBUG_ARGS,
 					  "wt_modify_internal: %d %s\n",
 					  err, *text, 0);
 			} else {
@@ -193,7 +193,7 @@ int wt_modify_internal(
 			break;
 
 		case SLAP_MOD_SOFTADD:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: softadd %s\n",
 				  mod->sm_desc->ad_cname.bv_val, 0, 0);
 			/* Avoid problems in index_add_mods()
@@ -217,7 +217,7 @@ int wt_modify_internal(
 			break;
 
 		case SLAP_MOD_SOFTDEL:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: softdel %s\n",
 				  mod->sm_desc->ad_cname.bv_val, 0, 0);
 			/* Avoid problems in index_delete_mods()

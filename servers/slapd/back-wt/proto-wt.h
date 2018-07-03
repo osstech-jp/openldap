@@ -32,6 +32,15 @@ LDAP_BEGIN_DECL
 
 AttrInfo *wt_attr_mask( struct wt_info *wi, AttributeDescription *desc );
 void wt_attr_flush( struct wt_info *wi );
+void wt_attr_index_unparse( struct wt_info *wi, BerVarray *bva );
+int wt_attr_index_config(
+	struct wt_info  *wi,
+	const char      *fname,
+	int         lineno,
+	int         argc,
+	char        **argv,
+	struct      config_reply_s *c_reply);
+void wt_attr_index_destroy( struct wt_info *wi );
 
 /*
  * id2entry.c
@@ -55,6 +64,20 @@ unsigned wt_idl_search( ID *ids, ID id );
 
 ID wt_idl_first( ID *ids, ID *cursor );
 ID wt_idl_next( ID *ids, ID *cursor );
+int wt_idl_append_one( ID *ids, ID id );
+void wt_idl_sort( ID *ids, ID *tmp );
+int wt_idl_intersection( ID *a, ID *b );
+int wt_filter_candidates(
+	Operation *op,
+	wt_ctx *wc,
+	Filter *f,
+	ID *ids,
+	ID *tmp,
+	ID *stack );
+int
+wt_idl_union(
+	ID  *a,
+	ID  *b );
 
 /*
  * index.c
@@ -67,6 +90,19 @@ wt_index_mask LDAP_P((
 	struct berval *atname ));
 
 int wt_index_entry LDAP_P(( Operation *op, wt_ctx *wc, int r, Entry *e ));
+int wt_index_values(
+	Operation *op,
+	wt_ctx *wc,
+	AttributeDescription *desc,
+	BerVarray vals,
+	ID id,
+	int opid );
+int wt_index_param(
+	Backend *be,
+	AttributeDescription *desc,
+	int ftype,
+	slap_mask_t *maskp,
+	struct berval *prefixp );
 
 #define wt_index_entry_add(op,t,e) \
 	wt_index_entry((op),(t),SLAP_INDEX_ADD_OP,(e))
@@ -165,6 +201,10 @@ int wt_dn2pentry( BackendDB *be,
 				  wt_ctx *wc,
 				  struct berval *ndn,
 				  Entry **ep );
+int wt_dn2aentry( BackendDB *be,
+				  wt_ctx *wc,
+				  struct berval *ndn,
+				  Entry **ep );
 
 /*
  * former ctx.c
@@ -199,6 +239,7 @@ extern BI_op_extended       wt_extended;
 extern BI_operational       wt_operational;
 
 /* tools.c */
+int wt_entry_header(WT_ITEM *item, EntryHeader *eh);
 extern BI_tool_entry_open    wt_tool_entry_open;
 extern BI_tool_entry_close   wt_tool_entry_close;
 extern BI_tool_entry_first_x wt_tool_entry_first_x;

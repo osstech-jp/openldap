@@ -44,7 +44,6 @@ wt_delete( Operation *op, SlapReply *rs )
 
 	wt_ctx *wc;
 	int rc;
-	WT_CURSOR *cursor = NULL;
 
 	int parent_is_glue = 0;
 	int parent_is_leaf = 0;
@@ -106,7 +105,7 @@ wt_delete( Operation *op, SlapReply *rs )
 		rc = wt_dn2aentry(op->o_bd, wc, &op->o_req_ndn, &e);
 		Debug( LDAP_DEBUG_ARGS,
 			   "<== wt_delete: rc=%d\n",
-			   op->o_req_dn.bv_val, 0, 0);
+			   rc, 0, 0);
 
 		switch( rc ) {
 		case 0:
@@ -357,7 +356,7 @@ wt_delete( Operation *op, SlapReply *rs )
 		assert( !BER_BVISNULL( &op->o_csn ) );
 		vals[0] = op->o_csn;
 		BER_BVZERO( &vals[1] );
-		rs->sr_err = wt_index_values( op, wc->session, slap_schema.si_ad_entryCSN,
+		rs->sr_err = wt_index_values( op, wc, slap_schema.si_ad_entryCSN,
 									  vals, 0, SLAP_INDEX_ADD_OP );
 		if ( rs->sr_err != LDAP_SUCCESS ) {
 			rs->sr_text = "entryCSN index update failed";

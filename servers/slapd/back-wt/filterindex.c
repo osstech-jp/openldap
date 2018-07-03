@@ -619,7 +619,7 @@ wt_filter_candidates(
 	ID *stack )
 {
 	struct wt_info *wi = (struct wt_info *)op->o_bd->be_private;
-	int rc = 0;
+	int rc = LDAP_SUCCESS;
 	Debug( LDAP_DEBUG_FILTER, "=> wt_filter_candidates\n", 0, 0, 0 );
 
 	if ( f->f_choice & SLAPD_FILTER_UNDEFINED ) {
@@ -716,7 +716,7 @@ done:
 		   (long) ids[0],
 		   (long) WT_IDL_FIRST( ids ),
 		   (long) WT_IDL_LAST( ids ) );
-	return 0;
+	return rc;
 }
 
 /*

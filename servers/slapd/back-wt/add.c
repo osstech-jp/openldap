@@ -35,15 +35,13 @@ wt_add( Operation *op, SlapReply *rs )
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
 	ID eid;
-	int num_retries = 0;
-	int success;
 	LDAPControl **postread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
 	int num_ctrls = 0;
 	wt_ctx *wc;
 	Entry *e = NULL;
 	Entry *p = NULL;
-	ID pid;
+	ID pid = NOID;
 	int rc;
 
     Debug( LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(wt_add) ": %s\n",
@@ -387,7 +385,6 @@ wt_add( Operation *op, SlapReply *rs )
 		  op->ora_e->e_id, op->ora_e->e_dn );
 
 return_results:
-	success = rs->sr_err;
 	send_ldap_result( op, rs );
 
 	slap_graduate_commit_csn( op );

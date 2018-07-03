@@ -46,7 +46,7 @@ mkrevdn(struct berval src){
 			rdn = src.bv_val;
 			src.bv_len = 0;
 		}
-		AC_MEMCPY( p, rdn, rdn_len );
+		memcpy( p, rdn, rdn_len );
 		p += rdn_len;
 		*p++ = ',';
 	}
@@ -191,9 +191,7 @@ wt_dn2id(
 {
 	WT_SESSION *session = wc->session;
 	WT_CURSOR *cursor = wc->dn2id_ndn;
-	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
-	int rc;
-	ID nid;
+	int rc = LDAP_SUCCESS;
 
 	Debug( LDAP_DEBUG_TRACE, "=> wt_dn2id(\"%s\")\n",
 		   ndn->bv_val, 0, 0 );
@@ -267,7 +265,6 @@ wt_dn2id_has_children(
 	wt_ctx *wc,
 	ID id )
 {
-	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	WT_SESSION *session = wc->session;
 	WT_CURSOR *cursor = wc->index_pid;
 	int rc;
@@ -313,10 +310,8 @@ wt_dn2idl_db(
 	ID *ids,
 	ID *stack)
 {
-	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	WT_SESSION *session = wc->session;
 	WT_CURSOR *cursor = wc->dn2id;
-	int exact = 0;
 	int rc;
 	char *revdn = NULL;
 	size_t revdn_len;

@@ -57,8 +57,7 @@ int wt_dn2entry( BackendDB *be,
 								  NULL, NULL, &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2entry)
-				   ": open_cursor failed: %s (%d)\n",
+				   "wt_dn2entry: open_cursor failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc, 0 );
 			goto done;
 		}
@@ -140,7 +139,7 @@ int wt_dn2pentry( BackendDB *be,
 int wt_dn2aentry( BackendDB *be,
 				  wt_ctx *wc,
 				  struct berval *ndn,
-				  Entry **ep ){
+				  Entry **ep ) {
 	Entry *e = NULL;
 	struct berval pdn;
 	int rc;

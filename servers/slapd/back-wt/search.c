@@ -243,7 +243,7 @@ parse_paged_cookie( Operation *op, SlapReply *rs )
 			goto done;
 		}
 
-		AC_MEMCPY( &reqcookie, ps->ps_cookieval.bv_val, sizeof( reqcookie ));
+		memcpy( &reqcookie, ps->ps_cookieval.bv_val, sizeof( reqcookie ));
 
 		if ( reqcookie > ps->ps_cookie ) {
 			/* bad cookie */
@@ -328,11 +328,9 @@ wt_search( Operation *op, SlapReply *rs )
     struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	ID id, cursor;
 	ID lastid = NOID;
-	AttributeName *attrs;
-	OpExtra *oex;
 	int manageDSAit;
 	wt_ctx *wc;
-	int rc;
+	int rc = LDAP_OTHER;
 	Entry *e = NULL;
 	Entry *ae = NULL;
 	Entry *base = NULL;
@@ -340,14 +338,12 @@ wt_search( Operation *op, SlapReply *rs )
 	time_t stoptime;
 
 	ID candidates[WT_IDL_UM_SIZE];
-	ID iscopes[WT_IDL_DB_SIZE];
 	ID scopes[WT_IDL_DB_SIZE];
 	int tentries = 0;
 	unsigned nentries = 0;
 
 	Debug( LDAP_DEBUG_ARGS, "==> wt_search: %s\n",
 		   op->o_req_dn.bv_val, 0, 0 );
-    attrs = op->oq_search.rs_attrs;
 
 	manageDSAit = get_manageDSAit( op );
 

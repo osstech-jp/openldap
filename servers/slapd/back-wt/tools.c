@@ -33,15 +33,11 @@ typedef struct dn_id {
 
 #define HOLE_SIZE   4096
 static dn_id hbuf[HOLE_SIZE], *holes = hbuf;
-static unsigned nhmax = HOLE_SIZE;
 static unsigned nholes;
-
-static int index_nattrs;
 
 static struct berval    *tool_base;
 static int      tool_scope;
 static Filter       *tool_filter;
-static Entry        *tool_next_entry;
 
 static wt_ctx *wc;
 static WT_CURSOR *reader;
@@ -51,14 +47,12 @@ int
 wt_tool_entry_open( BackendDB *be, int mode )
 {
     struct wt_info *wi = (struct wt_info *) be->be_private;
-	WT_CONNECTION *conn = wi->wi_conn;
 	int rc;
 
 	wc = wt_ctx_init(wi);
     if( !wc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_open)
-			   ": wt_ctx_get failed: %s (%d)\n",
+			   "wt_tool_entry_open: wt_ctx_get failed: %s (%d)\n",
 			   0, 0, 0 );
 		return -1;
     }
@@ -67,8 +61,7 @@ wt_tool_entry_open( BackendDB *be, int mode )
 								  ,NULL, NULL, &reader);
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_open)
-			   ": cursor open failed: %s (%d)\n",
+			   "wt_tool_entry_open: cursor open failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		return -1;
 	}
@@ -79,8 +72,6 @@ wt_tool_entry_open( BackendDB *be, int mode )
 int
 wt_tool_entry_close( BackendDB *be )
 {
-	int rc;
-
 	if( reader ) {
 		reader->close(reader);
 		reader = NULL;
@@ -128,8 +119,7 @@ wt_tool_entry_next( BackendDB *be )
 		return NOID;
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_next)
-			   ": next failed: %s (%d)\n",
+			   "wt_tool_entry_next: next failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		return NOID;
 	}
@@ -137,8 +127,7 @@ wt_tool_entry_next( BackendDB *be )
 	rc = reader->get_key(reader, &id);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_next)
-			   ": get_key failed: %s (%d)\n",
+			   "wt_tool_entry_next: get_key failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 	}
 	return id;
@@ -162,7 +151,8 @@ entry_getlen(unsigned char **buf)
     return len;
 }
 
-int wt_entry_header(WT_ITEM *item, EntryHeader *eh){
+int wt_entry_header(WT_ITEM *item, EntryHeader *eh)
+{
 	unsigned char *ptr = (unsigned char *)item->data;
 
     /* Some overlays can create empty entries
@@ -228,7 +218,6 @@ static int wt_tool_next_id(
     struct berval *text,
     int hole )
 {
-    struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	struct berval dn = e->e_name;
 	struct berval ndn = e->e_nname;
 	struct berval pdn, npdn;
@@ -308,7 +297,6 @@ wt_tool_index_add(
 ID
 wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 {
-    struct wt_info *wi = (struct wt_info *) be->be_private;
     int rc;
 	Operation op = {0};
 	Opheader ohdr = {0};
@@ -319,14 +307,12 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 	assert( text->bv_val[0] == '\0' ); /* overconservative? */
 
     Debug( LDAP_DEBUG_TRACE,
-		   "=> " LDAP_XSTRING(wt_tool_entry_put)
-		   ": ( \"%s\" )\n", e->e_dn, 0, 0);
+		   "=> wt_tool_entry_put: ( \"%s\" )\n", e->e_dn, 0, 0);
 
     rc = wc->session->begin_transaction(wc->session, NULL);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id_add)
-			   ": begin_transaction failed: %s (%d)\n",
+			   "wt_dn2id_put: begin_transaction failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		return NOID;
 	}
@@ -342,7 +328,7 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 				  "wt_tool_next_id failed: %s (%d)",
 				  wiredtiger_strerror(rc), rc );
         Debug( LDAP_DEBUG_ANY,
-			   "=> " LDAP_XSTRING(wt_tool_entry_put) ": %s\n",
+			   "=> wt_tool_entry_put: %s\n",
 			   text->bv_val, 0, 0 );
 		goto done;
 	}
