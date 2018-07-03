@@ -159,7 +159,7 @@ wt_delete( Operation *op, SlapReply *rs )
 
 	/* FIXME : dn2entry() should return non-glue entry */
 	if (rc == WT_NOTFOUND ||
-		!manageDSAit && e && is_entry_glue( e ) ) {
+		( !manageDSAit && e && is_entry_glue( e ) )) {
 		if ( !e ) {
 			Debug( LDAP_DEBUG_ARGS,
 				   "<== wt_delete: no such object %s\n",
