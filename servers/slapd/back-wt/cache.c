@@ -164,7 +164,6 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 		level++;
 	}while(!be_issuffix( be, &pdn ));
 
-done:
 	if(cursor) {
 		cursor->close(cursor);
 	}
