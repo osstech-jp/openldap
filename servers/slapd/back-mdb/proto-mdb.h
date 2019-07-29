@@ -105,6 +105,12 @@ int mdb_dn2id_children(
 	MDB_txn *tid,
 	Entry *e );
 
+int mdb_dn2id_children_num(
+	Operation *op,
+	MDB_txn *tid,
+	Entry *e,
+	size_t *numSubordinates);
+
 int mdb_dn2sups (
 	Operation *op,
 	MDB_txn *tid,

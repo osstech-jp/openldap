@@ -501,6 +501,15 @@ static struct slap_schema_ad_map {
 		NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL,
 		offsetof(struct slap_internal_schema, si_ad_hasSubordinates) },
+	{ "numSubordinates", "( 1.3.6.1.4.1.453.16.2.103 NAME 'numSubordinates' "
+			"DESC 'count of immediate subordinates' "
+			"EQUALITY integerMatch ORDERING integerOrderingMatch "
+			"SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 "
+			"SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation )",
+		NULL, SLAP_AT_DYNAMIC,
+		NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL,
+		offsetof(struct slap_internal_schema, si_ad_numSubordinates) },
 	{ "subschemaSubentry", "( 2.5.18.10 NAME 'subschemaSubentry' "
 			"DESC 'RFC4512: name of controlling subschema entry' "
 			"EQUALITY distinguishedNameMatch "

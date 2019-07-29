@@ -550,6 +550,40 @@ mdb_dn2id_children(
 }
 
 int
+mdb_dn2id_children_num(
+	Operation *op,
+	MDB_txn *txn,
+	Entry *e,
+	size_t *num)
+{
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_dbi dbi = mdb->mi_dn2id;
+	MDB_val		key, data;
+	MDB_cursor	*cursor;
+	int		rc;
+	ID		id;
+
+	*num = 0;
+	key.mv_size = sizeof(ID);
+	key.mv_data = &id;
+	id = e->e_id;
+
+	rc = mdb_cursor_open( txn, dbi, &cursor );
+	if ( rc ) return rc;
+
+	rc = mdb_cursor_get( cursor, &key, &data, MDB_SET );
+	if ( rc == 0 ) {
+		size_t dkids;
+		rc = mdb_cursor_count( cursor, &dkids );
+		if ( rc == 0 ) {
+			*num = dkids - 1;
+		}
+	}
+	mdb_cursor_close( cursor );
+	return rc;
+}
+
+int
 mdb_id2name(
 	Operation *op,
 	MDB_txn *txn,

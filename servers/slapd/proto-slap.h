@@ -1508,6 +1508,7 @@ LDAP_SLAPD_F (slap_op_t) slap_req2op LDAP_P(( ber_tag_t tag ));
 LDAP_SLAPD_F (Attribute *) slap_operational_subschemaSubentry( Backend *be );
 LDAP_SLAPD_F (Attribute *) slap_operational_entryDN( Entry *e );
 LDAP_SLAPD_F (Attribute *) slap_operational_hasSubordinate( int has );
+LDAP_SLAPD_F (Attribute *) slap_operational_numSubordinate( size_t num );
 
 /*
  * overlays.c

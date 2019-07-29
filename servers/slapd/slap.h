@@ -914,6 +914,7 @@ struct slap_internal_schema {
 	AttributeDescription *si_ad_modifiersName;
 	AttributeDescription *si_ad_modifyTimestamp;
 	AttributeDescription *si_ad_hasSubordinates;
+	AttributeDescription *si_ad_numSubordinates;
 	AttributeDescription *si_ad_subschemaSubentry;
 	AttributeDescription *si_ad_collectiveSubentries;
 	AttributeDescription *si_ad_collectiveExclusions;

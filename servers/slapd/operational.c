@@ -88,3 +88,23 @@ slap_operational_hasSubordinate( int hs )
 	return a;
 }
 
+Attribute *
+slap_operational_numSubordinate( size_t num )
+{
+	Attribute	*a;
+	struct berval	val;
+	char buf[256];
+	snprintf(buf, sizeof(buf), "%d", num);
+	val.bv_val = buf;
+	val.bv_len = strlen( val.bv_val );
+
+	a = attr_alloc( slap_schema.si_ad_numSubordinates );
+	a->a_numvals = 1;
+	a->a_vals = ch_malloc( 2 * sizeof( struct berval ) );
+
+	ber_dupbv( &a->a_vals[0], &val );
+	a->a_vals[1].bv_val = NULL;
+
+	a->a_nvals = a->a_vals;
+	return a;
+}
