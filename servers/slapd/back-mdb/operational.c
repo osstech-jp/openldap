@@ -83,6 +83,54 @@ done:;
 }
 
 /*
+ * sets *hasSubordinates to LDAP_COMPARE_TRUE/LDAP_COMPARE_FALSE
+ * if the entry has children or not.
+ */
+int
+mdb_numSubordinates(
+	Operation	*op,
+	Entry		*e,
+	size_t		*numSubordinates )
+{
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_txn		*rtxn;
+	mdb_op_info	opinfo = {{{0}}}, *moi = &opinfo;
+	int		rc;
+
+	assert( e != NULL );
+
+	rc = mdb_opinfo_get(op, mdb, 1, &moi);
+	switch(rc) {
+	case 0:
+		break;
+	default:
+		rc = LDAP_OTHER;
+		goto done;
+	}
+
+	rtxn = moi->moi_txn;
+
+	rc = mdb_dn2id_children_num( op, rtxn, e , numSubordinates);
+
+	if( rc ) {
+		Debug(LDAP_DEBUG_ARGS, 
+		      "<=- " LDAP_XSTRING(mdb_numSubordinates)
+		      ": dn2id_children_num failed: %s (%d)\n", 
+		      mdb_strerror(rc), rc, 0);
+		rc = LDAP_OTHER;
+	}
+
+done:;
+	if ( moi == &opinfo ) {
+		mdb_txn_reset( moi->moi_txn );
+		LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+	} else {
+		moi->moi_ref--;
+	}
+	return rc;
+}
+
+/*
  * sets the supported operational attributes (if required)
  */
 int
@@ -111,11 +159,31 @@ mdb_operational(
 		if ( rc == LDAP_SUCCESS ) {
 			*ap = slap_operational_hasSubordinate( hasSubordinates == LDAP_COMPARE_TRUE );
 			assert( *ap != NULL );
-
 			ap = &(*ap)->a_next;
 		}
 	}
 
+	for ( ap = &rs->sr_operational_attrs; *ap; ap = &(*ap)->a_next ) {
+		if ( (*ap)->a_desc == slap_schema.si_ad_numSubordinates ) {
+			break;
+		}
+	}
+
+	if ( *ap == NULL &&
+		attr_find( rs->sr_entry->e_attrs, slap_schema.si_ad_numSubordinates ) == NULL &&
+		( SLAP_OPATTRS( rs->sr_attr_flags ) ||
+			ad_inlist( slap_schema.si_ad_numSubordinates, rs->sr_attrs ) ) )
+	{
+		int	rc;
+		size_t numSubordinates = 0;
+		rc = mdb_numSubordinates( op, rs->sr_entry, &numSubordinates );
+		rc = LDAP_SUCCESS;
+		if ( rc == LDAP_SUCCESS ) {
+			*ap = slap_operational_numSubordinate( numSubordinates );
+			assert( *ap != NULL );
+			ap = &(*ap)->a_next;
+		}
+	}
 	return LDAP_SUCCESS;
 }
 
