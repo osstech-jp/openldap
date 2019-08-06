@@ -91,7 +91,6 @@ typedef struct {
 	WT_CURSOR *id2entry_update;
 	WT_SESSION *idlcache_session;
 	WT_CURSOR *index_pid;
-	WT_CURSOR *index[WT_INDEX_CACHE_SIZE];
 } wt_ctx;
 
 /* for the cache of attribute information (which are indexed, etc.) */

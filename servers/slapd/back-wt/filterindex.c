@@ -75,7 +75,7 @@ presence_candidates(
 	}
 
 	/* open index cursor */
-	cursor = wt_ctx_open_index(wc, &desc->ad_type->sat_cname, 0);
+	cursor = wt_index_open(wc, &desc->ad_type->sat_cname, 0);
 	if( !cursor ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "<= wt_presence_candidates: open index cursor failed: %s\n",
@@ -85,9 +85,7 @@ presence_candidates(
 
 	rc = wt_key_read( op->o_bd, cursor, &prefix, ids, NULL, 0 );
 
-	if(cursor){
-		cursor->reset(cursor);
-	}
+	cursor->close(cursor);
 	Debug(LDAP_DEBUG_TRACE,
 		  "<= wt_presence_candidates: id=%ld first=%ld last=%ld\n",
 		  (long) ids[0],
@@ -182,7 +180,7 @@ equality_candidates(
 	}
 
 	/* open index cursor */
-	cursor = wt_ctx_open_index(wc, &ava->aa_desc->ad_type->sat_cname, 0);
+	cursor = wt_index_open(wc, &ava->aa_desc->ad_type->sat_cname, 0);
 	if( !cursor ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "<= wt_equality_candidates: open index cursor failed: %s\n",
@@ -215,9 +213,7 @@ equality_candidates(
 
 	ber_bvarray_free_x( keys, op->o_tmpmemctx );
 
-	if(cursor){
-		cursor->reset(cursor);
-	}
+	cursor->close(cursor);
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "<= wt_equality_candidates: id=%ld, first=%ld, last=%ld\n",
@@ -305,7 +301,7 @@ approx_candidates(
 	}
 
 	/* open index cursor */
-	cursor = wt_ctx_open_index(wc, &ava->aa_desc->ad_type->sat_cname, 0);
+	cursor = wt_index_open(wc, &ava->aa_desc->ad_type->sat_cname, 0);
 	if( !cursor ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "<= wt_approx_candidates: open index cursor failed: %s\n",
@@ -346,9 +342,7 @@ approx_candidates(
 
 	ber_bvarray_free_x( keys, op->o_tmpmemctx );
 
-	if(cursor){
-		cursor->reset(cursor);
-	}
+	cursor->close(cursor);
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "<= wt_approx_candidates %ld, first=%ld, last=%ld\n",
@@ -433,7 +427,7 @@ substring_candidates(
 	}
 
 	/* open index cursor */
-	cursor = wt_ctx_open_index(wc, &sub->sa_desc->ad_cname, 0);
+	cursor = wt_index_open(wc, &sub->sa_desc->ad_cname, 0);
 	if( !cursor ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "<= wt_substring_candidates: open index cursor failed: %s\n",
@@ -475,9 +469,7 @@ substring_candidates(
 
 	ber_bvarray_free_x( keys, op->o_tmpmemctx );
 
-	if(cursor){
-		cursor->reset(cursor);
-	}
+	cursor->close(cursor);
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "<= wt_substring_candidates: %ld, first=%ld, last=%ld\n",

@@ -104,6 +104,8 @@ int wt_index_param(
 	slap_mask_t *maskp,
 	struct berval *prefixp );
 
+WT_CURSOR *wt_index_open(wt_ctx *wc, struct berval *name, int create);
+
 #define wt_index_entry_add(op,t,e) \
 	wt_index_entry((op),(t),SLAP_INDEX_ADD_OP,(e))
 #define wt_index_entry_del(op,t,e) \
@@ -212,7 +214,6 @@ int wt_dn2aentry( BackendDB *be,
 wt_ctx *wt_ctx_init(struct wt_info *wi);
 void wt_ctx_free(void *key, void *data);
 wt_ctx *wt_ctx_get(Operation *op, struct wt_info *wi);
-WT_CURSOR *wt_ctx_open_index(wt_ctx *wc, struct berval *name, int create);
 
 /*
  * former cache.c
