@@ -67,6 +67,38 @@ wt_hasSubordinates(
 	return rc;
 }
 
+int
+wt_numSubordinates(
+	Operation *op,
+	Entry *e,
+	size_t *numSubordinates )
+{
+	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
+	wt_ctx *wc = NULL;
+	int rc;
+
+	assert( e != NULL );
+
+	wc = wt_ctx_get(op, wi);
+	if( !wc ){
+		Debug( LDAP_DEBUG_ANY,
+			   LDAP_XSTRING(wt_numSubordinates)
+			   ": wt_ctx_get failed\n",
+			   0, 0, 0 );
+		return LDAP_OTHER;
+	}
+
+	rc = wt_dn2id_num_children(op, wc, e->e_id, numSubordinates);
+	if ( rc ) {
+		Debug(LDAP_DEBUG_ANY,
+			  "<=- " LDAP_XSTRING(wt_numSubordinates)
+			  ": num_children failed: %s (%d)\n",
+			  wiredtiger_strerror(rc), rc, 0 );
+		rc = LDAP_OTHER;
+	}
+	return rc;
+}
+
 /*
  * sets the supported operational attributes (if required)
  */
@@ -97,6 +129,28 @@ wt_operational(
 			*ap = slap_operational_hasSubordinate( hasSubordinates == LDAP_COMPARE_TRUE );
 			assert( *ap != NULL );
 
+			ap = &(*ap)->a_next;
+		}
+	}
+
+	for ( ap = &rs->sr_operational_attrs; *ap; ap = &(*ap)->a_next ) {
+		if ( (*ap)->a_desc == slap_schema.si_ad_numSubordinates ) {
+			break;
+		}
+	}
+
+	if ( *ap == NULL &&
+		 attr_find( rs->sr_entry->e_attrs, slap_schema.si_ad_numSubordinates ) == NULL &&
+		 ( SLAP_OPATTRS( rs->sr_attr_flags ) ||
+		   ad_inlist( slap_schema.si_ad_numSubordinates, rs->sr_attrs ) ) )
+	{
+		int  rc;
+		size_t numSubordinates = 0;
+
+		rc = wt_numSubordinates( op, rs->sr_entry, &numSubordinates );
+		if ( rc == LDAP_SUCCESS ) {
+			*ap = slap_operational_numSubordinate( numSubordinates );
+			assert( *ap != NULL );
 			ap = &(*ap)->a_next;
 		}
 	}

@@ -302,6 +302,64 @@ done:
 }
 
 int
+wt_dn2id_num_children(
+	Operation *op,
+	wt_ctx *wc,
+	ID id,
+	size_t *num)
+{
+	WT_SESSION *session = wc->session;
+	WT_CURSOR *cursor = NULL;
+	int rc;
+	uint64_t key = id;
+	*num = 0;
+
+	rc = session->open_cursor(session, WT_INDEX_PID,
+							  NULL, NULL, &cursor);
+	if( rc ){
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_dn2id_num_children: cursor open failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		goto done;
+	}
+
+	cursor->set_key(cursor, key);
+	rc = cursor->search(cursor);
+	switch ( rc ) {
+	case 0:
+		break;
+	case WT_NOTFOUND:
+		goto done;
+	default:
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_dn2id_num_children: search failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		goto done;
+	}
+
+	do {
+		rc = cursor->get_key(cursor, &key);
+		if( rc ){
+			Debug( LDAP_DEBUG_ANY,
+				   "wt_dn2id_num_children: get_key failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+			goto done;
+		}
+		if (id != key) {
+			break;
+		}
+		*num += 1;
+		rc = cursor->next(cursor);
+	} while( rc == 0 );
+
+done:
+	if(cursor){
+		cursor->close(cursor);
+	}
+	return 0;
+}
+
+int
 wt_dn2idl_db(
 	Operation *op,
 	wt_ctx *wc,
@@ -446,7 +504,6 @@ wt_dn2idl(
 
 	return rc;
 }
-
 
 /*
  * Local variables:

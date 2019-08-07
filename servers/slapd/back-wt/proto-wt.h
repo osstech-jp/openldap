@@ -191,6 +191,13 @@ wt_dn2id_has_children(
 	wt_ctx *wc,
 	ID id );
 
+int
+wt_dn2id_num_children(
+	Operation *op,
+	wt_ctx *wc,
+	ID id,
+	size_t *num);
+
 /*
  * dn2entry.c
  */
