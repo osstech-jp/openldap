@@ -436,6 +436,9 @@ wt_dn2idl(
 		/* cache miss */
 	}
 
+	if ( wi->wi_flags & WT_USE_IDLCACHE ) {
+		wt_idlcache_begin(wc, ndn, op->ors_scope);
+	}
 	rc = wt_dn2idl_db(op, wc, ndn, e, ids, stack);
 	if ( rc == 0 && wi->wi_flags & WT_USE_IDLCACHE ) {
 		wt_idlcache_set(wc, ndn, op->ors_scope, ids);
@@ -443,7 +446,6 @@ wt_dn2idl(
 
 	return rc;
 }
-
 
 /*
  * Local variables:

@@ -67,6 +67,11 @@ int wt_idlcache_get(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
+	if (item.size == 0) {
+		Debug(LDAP_DEBUG_TRACE, "<= wt_idlcache_get: updating\n", 0, 0, 0);
+		rc = WT_NOTFOUND;
+		goto done;
+	}
 	memcpy(ids, item.data, item.size);
 
 	Debug(LDAP_DEBUG_TRACE,
@@ -96,7 +101,7 @@ int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 	item.data = ids;
 
 	rc = session->open_cursor(session, WT_TABLE_IDLCACHE, NULL,
-							  NULL, &cursor);
+							  "overwrite=false", &cursor);
 	if(rc){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_set: open_cursor failed: %s (%d)\n",
@@ -105,10 +110,16 @@ int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 	}
 	cursor->set_key(cursor, ndn->bv_val, (int8_t)scope);
 	cursor->set_value(cursor, &item);
-	rc = cursor->insert(cursor);
-	if(rc){
+	rc = cursor->update(cursor);
+	switch( rc ){
+	case 0:
+		break;
+	case WT_NOTFOUND:
+		// updating cache by another thread
+		goto done;
+	default:
 		Debug( LDAP_DEBUG_ANY,
-			   "wt_idlcache_set: insert failed: %s (%d)\n",
+			   "wt_idlcache_set: update failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
@@ -116,6 +127,48 @@ int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 	Debug(LDAP_DEBUG_TRACE,
 		  "<= wt_idlcache_set: set idl size=%ld\n",
 		  (long)ids[0], 0, 0);
+done:
+	if(cursor) {
+		cursor->close(cursor);
+	}
+	return rc;
+}
+
+int wt_idlcache_begin(wt_ctx *wc, struct berval *ndn, int scope)
+{
+	int rc = 0;
+	WT_ITEM item;
+	WT_SESSION *session = wc->idlcache_session;
+	WT_CURSOR *cursor = NULL;
+
+	Debug( LDAP_DEBUG_TRACE,
+		   "=> wt_idlcache_begin(\"%s\", %d)\n",
+		   ndn->bv_val, scope, 0 );
+
+	item.size = 0;
+	item.data = "";
+
+	rc = session->open_cursor(session, WT_TABLE_IDLCACHE, NULL,
+							  "overwrite=true", &cursor);
+	if(rc){
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_idlcache_begin: open_cursor failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		return rc;
+	}
+	cursor->set_key(cursor, ndn->bv_val, (int8_t)scope);
+	cursor->set_value(cursor, &item);
+	rc = cursor->update(cursor);
+	if(rc){
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_idlcache_begin: update failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		goto done;
+	}
+
+	Debug(LDAP_DEBUG_TRACE,
+		  "<= wt_idlcache_begin: set updating\n", 0, 0, 0);
+
 done:
 	if(cursor) {
 		cursor->close(cursor);
@@ -149,10 +202,9 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 		return rc;
 	}
 
-	do{
-		dnParent( &pdn, &pdn );
-		level++;
-		if (level == 1) {
+	dnParent( &pdn, &pdn );
+	do {
+		if (level == 0) {
 			/* clear only parent level cache */
 			cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_ONE);
 			cursor->remove(cursor);
@@ -161,6 +213,7 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 		cursor->remove(cursor);
 		cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_CHILDREN);
 		cursor->remove(cursor);
+		dnParent( &pdn, &pdn );
 		level++;
 	}while(!be_issuffix( be, &pdn ));
 
