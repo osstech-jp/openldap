@@ -220,6 +220,7 @@ wt_ctx *wt_ctx_get(Operation *op, struct wt_info *wi);
  */
 int wt_idlcache_get(wt_ctx *wc, struct berval *ndn, int scope, ID *ids);
 int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids);
+int wt_idlcache_begin(wt_ctx *wc, struct berval *ndn, int scope);
 int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn);
 
 /*
