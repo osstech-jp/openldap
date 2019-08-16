@@ -10,12 +10,13 @@ new "{K5KEY}" password hash mechanism is provided. For krb5KDCEntries that
 have this hash specifier in their userPassword attribute, Simple Binds
 will be checked against the Kerberos keys of the Entry. No data is
 needed after the "{K5KEY}" hash specifier in the userPassword, it is
-looked up from the Entry directly.
+looked up from the Entry directly. (The sambaLMPassword attribute is
+not supported by default. See DO_SAMBA_LMPASSWORD below)
 
 The Samba support is written using the Samba 3.0 LDAP schema. If a
 PasswordModify is performed on an entry that has the sambaSamAccount
-objectclass, then the sambaLMPassword, sambaNTPassword, and sambaPwdLastSet
-attributes will be updated accordingly.
+objectclass, then the sambaNTPassword, and sambaPwdLastSet attributes
+will be updated accordingly.
 
 To use the overlay, add:
 
@@ -41,7 +42,8 @@ All modules compiled in (i.e. krb5 and samba) are enabled; the statement
 
 can be used to enable only the desired one(s); legal values for <module>
 are "krb5", "samba" and "shadow", if they are respectively enabled by defining
-DO_KRB5, DO_SAMBA and DO_SHADOW.
+DO_KRB5, DO_SAMBA (and DO_SAMBA_LMPASSWORD for support the sambaLMPassword
+attribute) and DO_SHADOW.
 
 The samba module also supports the
 

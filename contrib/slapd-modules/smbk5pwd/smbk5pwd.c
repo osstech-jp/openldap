@@ -66,18 +66,24 @@ static ObjectClass *oc_krb5KDCEntry;
 
 #ifdef DO_SAMBA
 #ifdef HAVE_GNUTLS
+#ifdef DO_SAMBA_LMPASSWORD
 #include <nettle/des.h>
-#include <nettle/md4.h>
 typedef unsigned char DES_cblock[8];
+#endif
+#include <nettle/md4.h>
 #elif HAVE_OPENSSL
+#ifdef DO_SAMBA_LMPASSWORD
 #include <openssl/des.h>
+#endif
 #include <openssl/md4.h>
 #else
 #error Unsupported crypto backend.
 #endif
 #include "ldap_utf8.h"
 
+#ifdef DO_SAMBA_LMPASSWORD
 static AttributeDescription *ad_sambaLMPassword;
+#endif
 static AttributeDescription *ad_sambaNTPassword;
 static AttributeDescription *ad_sambaPwdLastSet;
 static AttributeDescription *ad_sambaPwdMustChange;
@@ -135,6 +141,7 @@ static int smbk5pwd_modules_init( smbk5pwd_t *pi );
 #ifdef DO_SAMBA
 static const char hex[] = "0123456789abcdef";
 
+#ifdef DO_SAMBA_LMPASSWORD
 /* From liblutil/passwd.c... */
 static void lmPasswd_to_key(
 	const char *lmPasswd,
@@ -157,6 +164,7 @@ static void lmPasswd_to_key(
 	DES_set_odd_parity( key );
 #endif
 }
+#endif /* DO_SAMBA_LMPASSWORD */
 
 #define MAX_PWLEN 256
 #define	HASHLEN	16
@@ -182,6 +190,7 @@ static void hexify(
 	*a++ = '\0';
 }
 
+#ifdef DO_SAMBA_LMPASSWORD
 static void lmhash(
 	struct berval *passwd,
 	struct berval *hash
@@ -220,6 +229,7 @@ static void lmhash(
 
 	hexify( (char *)hbuf, hash );
 }
+#endif /* DO_SAMBA_LMPASSWORD */
 
 static void nthash(
 	struct berval *passwd,
@@ -530,7 +540,10 @@ static int smbk5pwd_exop_passwd(
 		struct berval *keys;
 		ber_len_t j,l;
 		wchar_t *wcs, wc;
-		char *c, *d;
+		char *c;
+#ifdef DO_SAMBA_LMPASSWORD
+		char *d;
+#endif
 		struct berval pwd;
 		
 		/* Expand incoming UTF8 string to UCS4 */
@@ -568,6 +581,7 @@ static int smbk5pwd_exop_passwd(
 		ml->sml_values = keys;
 		ml->sml_nvalues = NULL;
 
+#ifdef DO_SAMBA_LMPASSWORD
 		/* Truncate UCS2 to 8-bit ASCII */
 		c = pwd.bv_val+1;
 		d = pwd.bv_val+2;
@@ -594,6 +608,7 @@ static int smbk5pwd_exop_passwd(
 		ml->sml_numvals = 1;
 		ml->sml_values = keys;
 		ml->sml_nvalues = NULL;
+#endif /* DO_SAMBA_LMPASSWORD */
 
 		ch_free(wcs);
 
@@ -949,7 +964,9 @@ smbk5pwd_modules_init( smbk5pwd_t *pi )
 #endif /* DO_KRB5 */
 #ifdef DO_SAMBA
 	samba_ad[] = {
+#ifdef DO_SAMBA_LMPASSWORD
 		{ "sambaLMPassword",		&ad_sambaLMPassword },
+#endif
 		{ "sambaNTPassword",		&ad_sambaNTPassword },
 		{ "sambaPwdLastSet",		&ad_sambaPwdLastSet },
 		{ "sambaPwdMustChange",		&ad_sambaPwdMustChange },
