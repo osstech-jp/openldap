@@ -36,17 +36,13 @@ enum {
 	WT_CONFIG,
 	WT_INDEX,
 	WT_MODE,
+	WT_IDLCACHE,
 };
 
 static ConfigTable wtcfg[] = {
     { "directory", "dir", 2, 2, 0, ARG_STRING|ARG_MAGIC|WT_DIRECTORY,
 	  wt_cf_gen, "( OLcfgDbAt:0.1 NAME 'olcDbDirectory' "
 	  "DESC 'Directory for database content' "
-	  "EQUALITY caseIgnoreMatch "
-	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
-    { "wtconfig", "config", 2, 2, 0, ARG_STRING|ARG_MAGIC|WT_CONFIG,
-	  wt_cf_gen, "( OLcfgDbAt:13.1 NAME 'olcWtConfig' "
-	  "DESC 'Configuration for WiredTiger' "
 	  "EQUALITY caseIgnoreMatch "
 	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
 	{ "index", "attr> <[pres,eq,approx,sub]", 2, 3, 0, ARG_MAGIC|WT_INDEX,
@@ -58,6 +54,15 @@ static ConfigTable wtcfg[] = {
 	  wt_cf_gen, "( OLcfgDbAt:0.3 NAME 'olcDbMode' "
 	  "DESC 'Unix permissions of database files' "
 	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "wtconfig", "config", 2, 2, 0, ARG_STRING|ARG_MAGIC|WT_CONFIG,
+	  wt_cf_gen, "( OLcfgDbAt:13.1 NAME 'olcWtConfig' "
+	  "DESC 'Configuration for WiredTiger' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "idlcache", NULL, 1, 2, 0, ARG_ON_OFF|ARG_MAGIC|WT_IDLCACHE,
+	  wt_cf_gen, "( OLcfgDbAt:13.2 NAME 'olcIDLcache' "
+	  "DESC 'enable IDL cache' "
+	  "SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED,
 		NULL, NULL, NULL, NULL }
 };
@@ -68,7 +73,7 @@ static ConfigOCs wtocs[] = {
 	  "DESC 'Wt backend configuration' "
 	  "SUP olcDatabaseConfig "
 	  "MUST olcDbDirectory "
-	  "MAY ( olcWtConfig $ olcDbIndex $ olcDbMode ) )",
+	  "MAY ( olcWtConfig $ olcDbIndex $ olcDbMode $ olcIDLcache) )",
 	  Cft_Database, wtcfg },
 	{ NULL, 0, NULL }
 };
@@ -108,6 +113,11 @@ wt_cf_gen( ConfigArgs *c )
 		case WT_INDEX:
 			wt_attr_index_unparse( wi, &c->rvalue_vals );
 			if ( !c->rvalue_vals ) rc = 1;
+			break;
+		case WT_IDLCACHE:
+			if ( wi->wi_flags & WT_USE_IDLCACHE) {
+				c->value_int = 1;
+			}
 			break;
 		}
 		return rc;
@@ -157,9 +167,15 @@ wt_cf_gen( ConfigArgs *c )
 															 c->be->be_suffix[0].bv_val );
 				ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 			}
+			break;
+		case WT_IDLCACHE:
+			if ( c->value_int ) {
+				wi->wi_flags |= WT_USE_IDLCACHE;
+			} else {
+				wi->wi_flags &= ~WT_USE_IDLCACHE;
+			}
+			break;
 		}
-		break;
-
 	}
 	return LDAP_SUCCESS;
 }

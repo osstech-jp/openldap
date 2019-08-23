@@ -47,6 +47,7 @@ wt_db_init( BackendDB *be, ConfigReply *cr )
 	wi->wi_lastid = 0;
 	wi->wi_search_stack_depth = DEFAULT_SEARCH_STACK_DEPTH;
 	wi->wi_search_stack = NULL;
+	wi->wi_flags = WT_USE_IDLCACHE;
 
 	be->be_private = wi;
 	be->be_cf_ocs = be->bd_info->bi_cf_ocs;
@@ -203,7 +204,6 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc), 0);
 		return -1;
 	}
-	wi->wi_flags |= WT_USE_IDLCACHE;
 
 readonly:
 	rc = wt_last_id( be, session, &wi->wi_lastid);
