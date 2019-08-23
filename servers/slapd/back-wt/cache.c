@@ -202,8 +202,8 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 		return rc;
 	}
 
-	dnParent( &pdn, &pdn );
 	do {
+		dnParent( &pdn, &pdn );
 		if (level == 0) {
 			/* clear only parent level cache */
 			cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_ONE);
@@ -213,7 +213,6 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 		cursor->remove(cursor);
 		cursor->set_key(cursor, pdn.bv_val, (int8_t)LDAP_SCOPE_CHILDREN);
 		cursor->remove(cursor);
-		dnParent( &pdn, &pdn );
 		level++;
 	}while(!be_issuffix( be, &pdn ));
 
