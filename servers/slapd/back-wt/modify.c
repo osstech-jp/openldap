@@ -598,37 +598,41 @@ retry:
 	dummy = *e;
 	rs->sr_err = wt_modify_internal( op, wc, op->orm_modlist,
 									 &dummy, &rs->sr_text, textbuf, textlen );
-	if( rs->sr_err != LDAP_SUCCESS ) {
-		Debug( LDAP_DEBUG_TRACE, "wt_modify: modify failed (%d)\n",
+	switch ( rs->sr_err ) {
+	case LDAP_SUCCESS:
+		break;
+	case WT_ROLLBACK:
+		Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_modify_internal failed.\n", 0, 0, 0);
+		wc->session->rollback_transaction(wc->session, NULL);
+		goto retry;
+	default:
+		Debug( LDAP_DEBUG_ANY, "wt_modify: modify failed (%d)\n",
 			   rs->sr_err, 0, 0 );
 		/* Only free attrs if they were dup'd.  */
 		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
-		
-		if ( rs->sr_err == WT_ROLLBACK ) {
-			Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_modify_internal failed.\n", 0, 0, 0);
-			wc->session->rollback_transaction(wc->session, NULL);
-			goto retry;
-		}
 		goto return_results;
+		
 	}
 
 	/* change the entry itself */
 	rs->sr_err = wt_id2entry_update( op, wc, &dummy );
-	if ( rs->sr_err != 0 ) {
-		Debug( LDAP_DEBUG_TRACE, "wt_modify: id2entry update failed (%d)\n",
-			   rs->sr_err, 0, 0 );
-		if ( rs->sr_err == LDAP_ADMINLIMIT_EXCEEDED ) {
-			rs->sr_text = "entry too big";
-		} else {
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "entry update failed";
-		}
+	switch ( rs->sr_err ) {
+	case 0:
+		break;
+	case WT_ROLLBACK:
+		Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_id2entry_update failed.\n", 0, 0, 0);
 		wc->session->rollback_transaction(wc->session, NULL);
-		
-		if ( rs->sr_err == WT_ROLLBACK ) {
-			Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_id2entry_update failed.\n", 0, 0, 0);
-			goto retry;
-		}
+		goto retry;
+	case LDAP_ADMINLIMIT_EXCEEDED:
+		Debug( LDAP_DEBUG_ANY, "wt_modify: id2entry update failed (%d)\n",
+			   rs->sr_err, 0, 0 );
+		rs->sr_text = "entry too big";
+		goto return_results;
+	default:
+		Debug( LDAP_DEBUG_ANY, "wt_modify: id2entry update failed (%d)\n",
+			   rs->sr_err, 0, 0 );
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "entry update failed";
 		goto return_results;
 	}
 
