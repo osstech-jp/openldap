@@ -84,6 +84,10 @@ int slapd_tcp_rmem;
 int slapd_tcp_wmem;
 #endif /* LDAP_TCP_BUFFER */
 
+static int slapd_tcp_keepalive_idle = 0;
+static int slapd_tcp_keepalive_probes = 0;
+static int slapd_tcp_keepalive_interval = 0;
+
 Listener **slap_listeners = NULL;
 static volatile sig_atomic_t listening = 1; /* 0 when slap_listeners closed */
 static ldap_pvt_thread_t *listener_tid;
@@ -1654,6 +1658,8 @@ static int daemon_inited = 0;
 int
 slapd_daemon_init( const char *urls )
 {
+	const char *s;
+	int v;
 	int i, j, n, rc;
 	char **u;
 
@@ -1669,6 +1675,22 @@ slapd_daemon_init( const char *urls )
 #ifdef HAVE_TCPD
 	ldap_pvt_thread_mutex_init( &sd_tcpd_mutex );
 #endif /* TCP Wrappers */
+
+	if ((s = getenv("SLAPD_TCP_KEEPALIVE_IDLE")) != NULL) {
+		if ((v = atoi(s)) > 0) {
+			slapd_tcp_keepalive_idle = v;
+		}
+	}
+	if ((s = getenv("SLAPD_TCP_KEEPALIVE_PROBES")) != NULL) {
+		if ((v = atoi(s)) > 0) {
+			slapd_tcp_keepalive_probes = v;
+		}
+	}
+	if ((s = getenv("SLAPD_TCP_KEEPALIVE_INTERVAL")) != NULL) {
+		if ((v = atoi(s)) > 0) {
+			slapd_tcp_keepalive_interval = v;
+		}
+	}
 
 	daemon_inited = 1;
 
@@ -1970,6 +1992,60 @@ slap_listener(
 				"errno=%d (%s)\n", (long) sfd, err, sock_errstr(err) );
 			slapd_close(sfd);
 			return 0;
+		}
+		if ( slapd_tcp_keepalive_idle > 0 )
+		{
+#ifdef TCP_KEEPIDLE
+			if ( setsockopt( s, IPPROTO_TCP, TCP_KEEPIDLE,
+					(void*) &slapd_tcp_keepalive_idle,
+					sizeof(slapd_tcp_keepalive_idle) ) == AC_SOCKET_ERROR )
+			{
+				Debug(LDAP_DEBUG_ANY,
+					"slap_listener: "
+					"setsockopt(%d, TCP_KEEPIDLE) failed (ignored).\n",
+					s, 0, 0 );
+			}
+#else
+			Debug(LDAP_DEBUG_ANY, "slap_listener: "
+					"sockopt TCP_KEEPIDLE not supported on this system.\n",
+					0, 0, 0 );
+#endif /* TCP_KEEPIDLE */
+		}
+		if ( slapd_tcp_keepalive_probes > 0 )
+		{
+#ifdef TCP_KEEPCNT
+			if ( setsockopt( s, IPPROTO_TCP, TCP_KEEPCNT,
+					(void*) &slapd_tcp_keepalive_probes,
+					sizeof(slapd_tcp_keepalive_probes) ) == AC_SOCKET_ERROR )
+			{
+				Debug(LDAP_DEBUG_ANY,
+					"slap_listener: "
+					"setsockopt(%d, TCP_KEEPCNT) failed (ignored).\n",
+					s, 0, 0 );
+			}
+#else
+			Debug(LDAP_DEBUG_ANY, "slap_listener: "
+					"sockopt TCP_KEEPCNT not supported on this system.\n",
+					0, 0, 0 );
+#endif /* TCP_KEEPCNT */
+		}
+		if ( slapd_tcp_keepalive_interval > 0 )
+		{
+#ifdef TCP_KEEPINTVL
+			if ( setsockopt( s, IPPROTO_TCP, TCP_KEEPINTVL,
+					(void*) &slapd_tcp_keepalive_interval,
+					sizeof(slapd_tcp_keepalive_interval) ) == AC_SOCKET_ERROR )
+			{
+				Debug(LDAP_DEBUG_ANY,
+					"slap_listener: "
+					"setsockopt(%d, TCP_KEEPINTVL) failed (ignored).\n",
+					s, 0, 0 );
+			}
+#else
+			Debug(LDAP_DEBUG_ANY, "slap_listener: "
+					"sockopt TCP_KEEPINTVL not supported on this system.\n",
+					0, 0, 0 );
+#endif /* TCP_KEEPINTVL */
 		}
 #endif /* SO_KEEPALIVE */
 #ifdef TCP_NODELAY
