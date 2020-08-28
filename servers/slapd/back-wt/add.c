@@ -34,7 +34,7 @@ wt_add( Operation *op, SlapReply *rs )
 	size_t textlen = sizeof textbuf;
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
-	ID eid;
+	ID eid = NOID;
 	LDAPControl **postread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
 	int num_ctrls = 0;
@@ -284,7 +284,10 @@ wt_add( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	rc = wc->session->begin_transaction(wc->session, NULL);
+ retry:
+	/* begin transaction */
+	wc->is_begin_transaction = 0;
+	rc = wc->session->begin_transaction(wc->session, "isolation=snapshot");
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   LDAP_XSTRING(wt_add) ": begin_transaction failed: %s (%d)\n",
@@ -293,11 +296,30 @@ wt_add( Operation *op, SlapReply *rs )
 		rs->sr_text = "begin_transaction failed";
 		goto return_results;
 	}
+	wc->is_begin_transaction = 1;
 	Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(wt_add) ": session id: %p\n",
 		   wc->session, 0, 0 );
 
-	wt_next_id( op->o_bd, &eid );
-	op->ora_e->e_id = eid;
+	rc = wt_dn2entry(op->o_bd, wc, &op->o_req_ndn, &e);
+	switch( rc ) {
+	case 0:
+		rs->sr_err = LDAP_ALREADY_EXISTS;
+		goto return_results;
+	case WT_NOTFOUND:
+		break;
+	default:
+        Debug( LDAP_DEBUG_ANY,
+			   LDAP_XSTRING(wt_add)
+			   ": error at wt_dn2entry() rc=%d\n",
+			   rc, 0, 0 );
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "internal error";
+		goto return_results;
+	}
+	if ( eid == NOID) {
+		wt_next_id( op->o_bd, &eid );
+		op->ora_e->e_id = eid;
+	}
 
 	rc = wt_dn2id_add( op, wc, pid, op->ora_e );
 	if( rc ){
@@ -309,10 +331,13 @@ wt_add( Operation *op, SlapReply *rs )
 		case WT_DUPLICATE_KEY:
 			rs->sr_err = LDAP_ALREADY_EXISTS;
 			break;
+		case WT_ROLLBACK:
+			Debug (LDAP_DEBUG_TRACE, "wt_add: rollback wt_dn2id_add failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
 		default:
 			rs->sr_err = LDAP_OTHER;
 		}
-		wc->session->rollback_transaction(wc->session, NULL);
 		goto return_results;
 	}
 
@@ -322,14 +347,19 @@ wt_add( Operation *op, SlapReply *rs )
 			   LDAP_XSTRING(wt_add)
 			   ": id2entry_add failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
-		if ( rc == LDAP_ADMINLIMIT_EXCEEDED ) {
+		switch ( rc ){
+		case WT_ROLLBACK:
+			Debug (LDAP_DEBUG_TRACE, "wt_add: rollback wt_dn2entry_add failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		case LDAP_ADMINLIMIT_EXCEEDED:
 			rs->sr_err = LDAP_ADMINLIMIT_EXCEEDED;
 			rs->sr_text = "entry is too big";
-		} else {
+			break;
+		default:
 			rs->sr_err = LDAP_OTHER;
 			rs->sr_text = "entry store failed";
 		}
-		wc->session->rollback_transaction(wc->session, NULL);
 		goto return_results;
 	}
 
@@ -340,13 +370,20 @@ wt_add( Operation *op, SlapReply *rs )
 			  "<== " LDAP_XSTRING(wt_add)
 			  ": index add failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "index add failed";
-		wc->session->rollback_transaction(wc->session, NULL);
+		switch ( rc ) {
+		case WT_ROLLBACK:
+			Debug (LDAP_DEBUG_TRACE, "wt_add: rollback wt_index_entry_add failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		default:
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "index add failed";
+		}
 		goto return_results;
 	}
 
 	rc = wc->session->commit_transaction(wc->session, NULL);
+	wc->is_begin_transaction = 0;
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   "<== " LDAP_XSTRING(wt_add)
@@ -389,6 +426,13 @@ return_results:
 
 	slap_graduate_commit_csn( op );
 
+	if( wc && wc->is_begin_transaction ){
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_add: rollback transaction\n",
+			   0, 0, 0 );
+		wc->session->rollback_transaction(wc->session, NULL);
+		wc->is_begin_transaction = 0;
+	}
 	if( postread_ctrl != NULL && (*postread_ctrl) != NULL ) {
         slap_sl_free( (*postread_ctrl)->ldctl_value.bv_val, op->o_tmpmemctx );
         slap_sl_free( *postread_ctrl, op->o_tmpmemctx );

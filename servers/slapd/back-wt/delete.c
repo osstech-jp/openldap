@@ -141,6 +141,7 @@ wt_delete( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
+ retry:
 	/* get entry */
 	rc = wt_dn2entry(op->o_bd, wc, &op->o_req_ndn, &e);
 	switch( rc ) {
@@ -315,7 +316,8 @@ wt_delete( Operation *op, SlapReply *rs )
 	}
 
 	/* begin transaction */
-	rc = wc->session->begin_transaction(wc->session, NULL);
+	wc->is_begin_transaction = 0;
+	rc = wc->session->begin_transaction(wc->session, "isolation=snapshot");
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   "wt_delete: begin_transaction failed: %s (%d)\n",
@@ -324,17 +326,24 @@ wt_delete( Operation *op, SlapReply *rs )
 		rs->sr_text = "begin_transaction failed";
 		goto return_results;
 	}
-
+	wc->is_begin_transaction = 1;
+	
 	/* delete from dn2id */
 	rc = wt_dn2id_delete( op, wc, &op->o_req_ndn);
 	if ( rc ) {
 		Debug(LDAP_DEBUG_TRACE,
 			  "<== wt_delete: dn2id failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "dn2id delete failed";
-		wc->session->rollback_transaction(wc->session, NULL);
-		goto return_results;
+		switch( rc ) {
+		case WT_ROLLBACK:
+			Debug(LDAP_DEBUG_TRACE, "wt_delete: rollback wt_dn2id_delete failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		default:
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "dn2id delete failed";
+			goto return_results;
+		}
 	}
 
 	/* delete indices for old attributes */
@@ -343,10 +352,16 @@ wt_delete( Operation *op, SlapReply *rs )
 		Debug(LDAP_DEBUG_TRACE,
 			  "<== wt_delete: index delete failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "index delete failed";
-		wc->session->rollback_transaction(wc->session, NULL);
-		goto return_results;
+		switch ( rc ) {
+		case WT_ROLLBACK:
+			Debug(LDAP_DEBUG_TRACE, "wt_delete: rollback wt_index_entry_del failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		default:
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "index delete failed";
+			goto return_results;
+		}
 	}
 
 	/* fixup delete CSN */
@@ -359,10 +374,16 @@ wt_delete( Operation *op, SlapReply *rs )
 		rs->sr_err = wt_index_values( op, wc, slap_schema.si_ad_entryCSN,
 									  vals, 0, SLAP_INDEX_ADD_OP );
 		if ( rs->sr_err != LDAP_SUCCESS ) {
-			rs->sr_text = "entryCSN index update failed";
-			rs->sr_err = LDAP_OTHER;
-			wc->session->rollback_transaction(wc->session, NULL);
-			goto return_results;
+			switch ( rs->sr_err ) {
+			case WT_ROLLBACK:
+				Debug (LDAP_DEBUG_TRACE, "wt_delete: wt_index_values failed.\n", 0, 0, 0);
+				wc->session->rollback_transaction(wc->session, NULL);
+				goto retry;
+			default:
+				rs->sr_text = "entryCSN index update failed";
+				rs->sr_err = LDAP_OTHER;
+				goto return_results;
+			}
 		}
 	}
 
@@ -372,10 +393,16 @@ wt_delete( Operation *op, SlapReply *rs )
 		Debug( LDAP_DEBUG_TRACE,
 			   "<== wt_delete: id2entry failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "entry delete failed";
-		wc->session->rollback_transaction(wc->session, NULL);
-		goto return_results;
+		switch ( rc ) {
+		case WT_ROLLBACK:
+			Debug (LDAP_DEBUG_TRACE, "wt_delete: rollback wt_id2entry_delete failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		default:
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "entry delete failed";
+			goto return_results;
+		}
 	}
 
 	if ( pdn.bv_len != 0 ) {
@@ -383,6 +410,7 @@ wt_delete( Operation *op, SlapReply *rs )
 	}
 
 	rc = wc->session->commit_transaction(wc->session, NULL);
+	wc->is_begin_transaction = 0;
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   "<== wt_delete: commit_transaction failed: %s (%d)\n",
@@ -419,6 +447,13 @@ return_results:
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
 
+	if (wc && wc->is_begin_transaction ){
+		Debug ( LDAP_DEBUG_TRACE,
+				"wt_delete: rollback transaction\n", 0, 0, 0);
+		wc->session->rollback_transaction(wc->session, NULL);
+		wc->is_begin_transaction = 0;
+	}
+	
 	if( preread_ctrl != NULL && (*preread_ctrl) != NULL ) {
 		slap_sl_free( (*preread_ctrl)->ldctl_value.bv_val, op->o_tmpmemctx );
 		slap_sl_free( *preread_ctrl, op->o_tmpmemctx );

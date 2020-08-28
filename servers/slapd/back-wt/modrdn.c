@@ -130,7 +130,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	Debug( LDAP_DEBUG_TRACE,
 		   "wt_modrdn: parent dn=%s\n",
 		   p_dn.bv_val, 0, 0 );
-
+	
+ retry:
 	/* get entry */
 	rc = wt_dn2entry(op->o_bd, wc, &op->o_req_ndn, &e);
 	switch( rc ) {
@@ -393,7 +394,8 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	}
 
 	/* begin transaction */
-	rc = wc->session->begin_transaction(wc->session, NULL);
+	wc->is_begin_transaction = 0;
+	rc = wc->session->begin_transaction(wc->session, "isolation=snapshot");
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   "wt_modrdn: begin_transaction failed: %s (%d)\n",
@@ -413,9 +415,16 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		Debug(LDAP_DEBUG_TRACE,
 			  "<== wt_modrdn: delete failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "dn2id delete failed";
-		goto return_results;
+		switch ( rc ) {
+		case WT_ROLLBACK:
+			Debug(LDAP_DEBUG_TRACE, "wt_modrdn: rollback wt_dn2id_delete failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		default:
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "dn2id delete failed";
+			goto return_results;
+		}
 	}
 
 	/* copy the entry, then override some fields */
@@ -430,9 +439,16 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		Debug(LDAP_DEBUG_TRACE,
 			  "<== wt_modrdn: add failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "DN add failed";
-		goto return_results;
+		switch ( rc ) {
+		case WT_ROLLBACK:
+			Debug(LDAP_DEBUG_TRACE, "wt_modrdn: rollback wt_dn2id_add failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		default:
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "DN add failed";
+			goto return_results;
+		}
 	}
 	dummy.e_attrs = e->e_attrs;
 
@@ -442,8 +458,15 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		Debug(LDAP_DEBUG_TRACE,
 			  "<== wt_modrdn: modify failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc, 0 );
-		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
-		goto return_results;
+		switch ( rc ) {
+		case WT_ROLLBACK:
+			Debug (LDAP_DEBUG_TRACE, "wt_modrdn: rollback wt_modify_internal failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		default:
+			if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
+			goto return_results;
+		}
 	}
 
 	/* update entry */
@@ -452,9 +475,16 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		Debug( LDAP_DEBUG_TRACE,
 			   "wt_modrdn: id2entry update failed(%d)\n",
 			   rc, 0, 0 );
-		if ( rc == LDAP_ADMINLIMIT_EXCEEDED ) {
-			rs->sr_text = "entry too big";
-		} else {
+		switch ( rc ) {
+		case WT_ROLLBACK:
+			Debug (LDAP_DEBUG_TRACE, "wt_modrdn: rollback wt_id2entry_update failed.\n", 0, 0, 0);
+			wc->session->rollback_transaction(wc->session, NULL);
+			goto retry;
+		case LDAP_ADMINLIMIT_EXCEEDED:
+			rs->sr_err = LDAP_ADMINLIMIT_EXCEEDED;
+			rs->sr_text = "entry is too big";
+			break;
+		default:
 			rs->sr_err = LDAP_OTHER;
 			rs->sr_text = "entry update failed";
 		}

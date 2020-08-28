@@ -89,9 +89,13 @@ wt_dn2id_add(
 	cursor->set_value(cursor, e->e_ndn, e->e_id, pid);
 	rc = cursor->insert(cursor);
 	if(rc){
-		Debug( LDAP_DEBUG_ANY,
-			   "wt_dn2id_add: insert failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+		if ( rc == WT_ROLLBACK ) {
+			Debug( LDAP_DEBUG_TRACE, "wt_dn2id_add: rollback and retry: %s (%d)\n", wiredtiger_strerror(rc), rc, 0);
+		} else {
+			Debug( LDAP_DEBUG_ANY,
+				   "wt_dn2id_add: insert failed: %s (%d)\n",
+				   wiredtiger_strerror(rc), rc, 0 );
+		}
 		goto done;
     }
 
