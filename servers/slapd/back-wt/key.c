@@ -136,12 +136,10 @@ wt_key_change(
 		if ( rc == WT_NOTFOUND ) rc = 0;
 	}
 	if( rc ) {
-		if ( rc != WT_ROLLBACK ) {
-			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_key_change)
-				   ": error: %s (%d)\n",
-				   wiredtiger_strerror(rc), rc, 0);
-		}
+		Debug( LDAP_DEBUG_ANY,
+			   LDAP_XSTRING(wt_key_change)
+			   ": error: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0);
 		return rc;
 	}
 
