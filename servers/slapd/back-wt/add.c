@@ -34,7 +34,7 @@ wt_add( Operation *op, SlapReply *rs )
 	size_t textlen = sizeof textbuf;
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
-	ID eid;
+	ID eid = NOID;
 	LDAPControl **postread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
 	int num_ctrls = 0;
@@ -284,7 +284,7 @@ wt_add( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	rc = wc->session->begin_transaction(wc->session, NULL);
+	rc = wc->session->begin_transaction(wc->session, "isolation=read-uncommitted");
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   LDAP_XSTRING(wt_add) ": begin_transaction failed: %s (%d)\n",

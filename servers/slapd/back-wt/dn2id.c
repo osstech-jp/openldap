@@ -76,7 +76,7 @@ wt_dn2id_add(
 
 	if(!cursor){
 		rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
-								  NULL, &cursor);
+								  "overwrite=false", &cursor);
 		if(rc){
 			Debug( LDAP_DEBUG_ANY,
 				   "wt_dn2id_add: open_cursor failed: %s (%d)\n",
@@ -138,7 +138,7 @@ wt_dn2id_delete(
 
 	if(!cursor){
 		rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
-								  NULL, &cursor);
+								  "overwrite=false", &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
 				   "wt_dn2id_delete: open_cursor failed: %s (%d)\n",
