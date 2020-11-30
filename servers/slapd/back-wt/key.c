@@ -31,7 +31,7 @@ int
 wt_key_read(
 	Backend *be,
 	WT_CURSOR *cursor,
-	struct berval *k,
+	struct berval *bkey,
 	ID *ids,
 	WT_CURSOR **saved_cursor,
 	int get_flag
@@ -48,14 +48,18 @@ wt_key_read(
 	Debug( LDAP_DEBUG_TRACE, "=> key_read\n", 0, 0, 0 );
 
 	WT_IDL_ZERO(ids);
-
-	bv2ITEM(k, &key);
+	bv2ITEM(bkey, &key);
 	cursor->set_key(cursor, &key, 0);
 	rc = cursor->search_near(cursor, &exact);
-	if( rc ){
+	switch( rc ){
+	case 0:
+		break;
+	case WT_NOTFOUND:
+		rc = LDAP_SUCCESS;
+		goto done;
+	default:
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_key_read)
-			   ": search_near failed: %s (%d)\n",
+			   "wt_key_read: search_near failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc, 0 );
 		goto done;
 	}
