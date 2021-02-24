@@ -182,6 +182,7 @@ INDEXDB=noindexdb MAINDB=nomaindb
 case $BACKEND in
 	mdb) INDEXDB=indexdb MAINDB=maindb ;;
 	ndb) INDEXDB=indexdb ;;
+	wt) INDEXDB=indexdb ;;
 esac
 
 export	BACKEND BACKENDTYPE INDEXDB MAINDB \
