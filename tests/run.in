@@ -36,6 +36,7 @@ AC_meta=meta@BUILD_META@
 AC_monitor=@BUILD_MONITOR@
 AC_relay=relay@BUILD_RELAY@
 AC_sql=sql@BUILD_SQL@
+AC_wt=@BUILD_WT@
 
 # overlays
 AC_accesslog=accesslog@BUILD_ACCESSLOG@
