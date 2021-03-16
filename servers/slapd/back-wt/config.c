@@ -98,10 +98,9 @@ static int
 wt_cf_gen( ConfigArgs *c )
 {
 	struct wt_info *wi = (struct wt_info *) c->be->be_private;
-	int rc;
+	int rc = 0;
 
-	if(c->op == SLAP_CONFIG_EMIT) {
-		rc = 0;
+	if( c->op == SLAP_CONFIG_EMIT ) {
 		switch( c->type ) {
 		case WT_DIRECTORY:
 			if ( wi->wi_home ) {
@@ -120,6 +119,8 @@ wt_cf_gen( ConfigArgs *c )
 			}
 			break;
 		}
+		return rc;
+	} else if ( c->op == LDAP_MOD_DELETE ) {
 		return rc;
 	}
 
