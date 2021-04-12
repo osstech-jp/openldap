@@ -322,6 +322,18 @@ done:
 	(void) ber_free_buf( ber );
 }
 
+static int in_scope(Entry *base, Entry *e) {
+	int scopeok = 0;
+	char *base_revdn = wt_mkrevdn(base->e_nname);
+	char *e_revdn = wt_mkrevdn(e->e_nname);
+	if (strncmp(base_revdn, e_revdn, strlen(base_revdn)) == 0) {
+		scopeok = 1;
+	}
+	free(e_revdn);
+	free(base_revdn);
+	return scopeok;
+}
+
 int
 wt_search( Operation *op, SlapReply *rs )
 {
@@ -623,8 +635,7 @@ loop_begin:
 			if ( id == base->e_id ) break;
 			/* Fall-thru */
 		case LDAP_SCOPE_SUBTREE:
-			/* TODO: check for range ids */
-			scopeok = 1;
+			scopeok = in_scope(base, e);
 			break;
 		}
 

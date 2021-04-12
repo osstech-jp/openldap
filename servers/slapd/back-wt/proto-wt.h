@@ -191,6 +191,9 @@ wt_dn2id_has_children(
 	wt_ctx *wc,
 	ID id );
 
+char *
+wt_mkrevdn(struct berval src);
+
 /*
  * dn2entry.c
  */
