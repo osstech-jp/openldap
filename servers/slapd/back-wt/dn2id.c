@@ -26,8 +26,8 @@
 #include "config.h"
 #include "idl.h"
 
-char *
-wt_mkrevdn(struct berval src){
+static char *
+mkrevdn(struct berval src){
 	char *dst, *p;
 	char *rdn;
 	size_t rdn_len;
@@ -72,7 +72,7 @@ wt_dn2id_add(
 	assert( e->e_id != NOID );
 
 	/* make reverse dn */
-	revdn = wt_mkrevdn(e->e_nname);
+	revdn = mkrevdn(e->e_nname);
 
 	if(!cursor){
 		rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
@@ -134,7 +134,7 @@ wt_dn2id_delete(
 	Debug( LDAP_DEBUG_TRACE, "=> wt_dn2id_delete %s\n", ndn->bv_val, 0, 0 );
 
 	/* make reverse dn */
-	revdn = wt_mkrevdn(*ndn);
+	revdn = mkrevdn(*ndn);
 
 	if(!cursor){
 		rc = session->open_cursor(session, WT_TABLE_DN2ID, NULL,
@@ -322,7 +322,7 @@ wt_dn2idl_db(
 		   "=> wt_dn2idl_db(\"%s\")\n",
 		   ndn->bv_val, 0, 0 );
 
-	revdn = wt_mkrevdn(*ndn);
+	revdn = mkrevdn(*ndn);
 	revdn_len = strlen(revdn);
 
 	if ( !cursor ) {
