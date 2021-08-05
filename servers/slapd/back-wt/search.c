@@ -623,8 +623,7 @@ loop_begin:
 			if ( id == base->e_id ) break;
 			/* Fall-thru */
 		case LDAP_SCOPE_SUBTREE:
-			/* TODO: check for range ids */
-			scopeok = 1;
+			scopeok = dnIsSuffix(&e->e_nname, &base->e_nname);
 			break;
 		}
 
