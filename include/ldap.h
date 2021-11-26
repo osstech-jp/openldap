@@ -2300,6 +2300,7 @@ typedef enum passpolicyerror_enum {
        PP_passwordTooShort = 6,
        PP_passwordTooYoung = 7,
        PP_passwordInHistory = 8,
+       PP_passwordTooLong = 9,
        PP_noError = 65535
 } LDAPPasswordPolicyError;
 
